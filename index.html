@@ -25,10 +25,10 @@
 
     <!-- bootstrap css -->
     <link rel="stylesheet" href="bootstrap-5.3.8-dist/css/bootstrap.min.css">
-    
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
+
     <!-- PDF Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -115,6 +115,12 @@
                             </div>
                         </div>
 
+                        <!-- address input -->
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Address</label>
+                            <textarea class="form-control" id="address" rows="3" placeholder="Optional"></textarea>
+                        </div>
+
 
                         <div class="mb-3">
                             <label for="description" class="form-label">Description</label>
@@ -153,11 +159,13 @@
                                                     <i class="fas fa-pen"></i> Drawing Tools
                                                 </div>
                                                 <div class="tool-buttons">
-                                                    <button class="tool-btn active" id="penTool" data-tool="pen">
+                                                    <button type="button" class="tool-btn active" id="penTool"
+                                                        data-tool="pen">
                                                         <i class="fas fa-pen"></i>
                                                         <span>Pen</span>
                                                     </button>
-                                                    <button class="tool-btn" id="eraserTool" data-tool="eraser">
+                                                    <button type="button" class="tool-btn" id="eraserTool"
+                                                        data-tool="eraser">
                                                         <i class="fas fa-eraser"></i>
                                                         <span>Eraser</span>
                                                     </button>
@@ -313,10 +321,10 @@
                                         id="deleteCurrentDrawing">
                                         <i class="fas fa-trash"></i> Delete This Drawing
                                     </button>
-                                    <button type="button" class="btn btn-beautiful btn-primary-beautiful"
+                                    <!-- <button type="button" class="btn btn-beautiful btn-primary-beautiful"
                                         id="loadCurrentDrawing">
                                         <i class="fas fa-edit"></i> Load to Canvas
-                                    </button>
+                                    </button> -->
                                 </div>
 
                                 <div class="saved-drawings-list" id="savedDrawingsList">

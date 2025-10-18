@@ -348,6 +348,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const locationLat = locationInput.getAttribute('data-latitude');
         const locationLng = locationInput.getAttribute('data-longitude');
 
+        const address = document.getElementById('address').value;
         const description = document.getElementById('description').value;
 
         // Format date
@@ -436,6 +437,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             `;
 
+        // Add address field
+        documentHTML += `
+                <div class="document-field">
+                    <span class="document-label">Address:</span>
+                    <span>${address || 'Not Provided'}</span>
+                </div>
+            `;
+
         // Add photo if available
         if (photoData) {
             documentHTML += `
@@ -513,6 +522,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const locationLat = locationInput.getAttribute('data-latitude');
         const locationLng = locationInput.getAttribute('data-longitude');
 
+        const address = document.getElementById('address').value || 'Not Provided';
         const description = document.getElementById('description').value || 'Not Provided';
         const photoData = localStorage.getItem('taskPhoto');
         const savedDrawingImg = document.getElementById('savedDrawingImg');
@@ -815,6 +825,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     y = addKeyValueWithBreaks('Location:', 'Not Provided', margin, y);
                     y += 8;
                 }
+
+                y = addKeyValueWithBreaks('Address:', address, margin, y);
+                y += 4;
 
                 // DESCRIPTION section with page break handling
                 y = addKeyValueWithBreaks('Description:', description, margin, y, { lineHeight: 8 });

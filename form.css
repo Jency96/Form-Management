@@ -510,6 +510,10 @@ body {
     z-index: 5;
 }
 
+#clearAreaBtn {
+    display: none !important;
+}
+
 .document-preview {
     background-color: white;
     border: 1px solid #e1e8f5;
