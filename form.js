@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     // 🔒 Prevent any accidental form submissions that clear inputs
-    const form_task = document.querySelector('form');
+    const form_task = document.querySelector('taskForm');
     if (form_task) {
         form_task.addEventListener('submit', e => e.preventDefault());
 
@@ -919,7 +919,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const areaSelection = document.getElementById('areaSelection');
 
     // Tool buttons
-    const toolButtons = document.querySelectorAll('.tool-btn');
+    const penToolButton = document.getElementById('penTool');
     const colorOptions = document.querySelectorAll('.color-option');
 
     // State variables
@@ -1194,28 +1194,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         // Tool buttons
-        toolButtons.forEach(button => {
-            button.addEventListener('click', function () {
-                toolButtons.forEach(btn => {
-                    btn.classList.remove('active');
-                    btn.classList.remove('eraser-active');
-                });
-
-                const tool = this.getAttribute('data-tool');
-                currentTool = tool;
-
-                if (tool === 'eraser') {
-                    this.classList.add('eraser-active');
-                    eraserOptions.style.display = 'block';
-                } else {
-                    this.classList.add('active');
-                    eraserOptions.style.display = 'none';
-                }
-
-                updateDrawingSettings();
-                statusText.textContent = `${currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} tool selected`;
-                currentToolDisplay.textContent = currentTool.charAt(0).toUpperCase() + currentTool.slice(1);
-            });
+        penToolButton.addEventListener('click', function () {
+            currentTool = 'pen';
+            penToolButton.classList.add('active');
+            eraserOptions.style.display = 'none';
+            updateDrawingSettings();
+            statusText.textContent = 'Pen tool selected';
+            currentToolDisplay.textContent = 'Pen';
         });
 
         // Color options
@@ -1232,13 +1217,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Action buttons
         document.getElementById('startDrawing').addEventListener('click', function () {
             currentTool = 'pen';
-            toolButtons.forEach(btn => {
-                btn.classList.remove('active');
-                btn.classList.remove('eraser-active');
-                if (btn.getAttribute('data-tool') === 'pen') {
-                    btn.classList.add('active');
-                }
-            });
+            penToolButton.classList.add('active');
             eraserOptions.style.display = 'none';
             updateDrawingSettings();
             statusText.textContent = 'Pen tool selected';
@@ -1247,13 +1226,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.getElementById('eraserBtn').addEventListener('click', function () {
             currentTool = 'eraser';
-            toolButtons.forEach(btn => {
-                btn.classList.remove('active');
-                btn.classList.remove('eraser-active');
-                if (btn.getAttribute('data-tool') === 'eraser') {
-                    btn.classList.add('eraser-active');
-                }
-            });
+            penToolButton.classList.remove('active');
             eraserOptions.style.display = 'block';
             updateDrawingSettings();
             statusText.textContent = 'Eraser tool selected';
