@@ -1,16 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
 
-    // 🔒 Prevent any accidental form submissions that clear inputs
-    const form_task = document.querySelector('taskForm');
-    if (form_task) {
-        form_task.addEventListener('submit', e => e.preventDefault());
-
-        // 🧩 Ensure every button inside the form behaves as type="button"
-        form_task.querySelectorAll('button').forEach(btn => {
-            if (!btn.hasAttribute('type')) btn.setAttribute('type', 'button');
-        });
-    }
-
 
     // Location Picker Functionality
     // Location Picker Integration
@@ -534,6 +523,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const locationLng = locationInput.getAttribute('data-longitude');
 
         const address = document.getElementById('address').value || 'Not Provided';
+
         const description = document.getElementById('description').value || 'Not Provided';
         const photoData = localStorage.getItem('taskPhoto');
         const savedDrawingImg = document.getElementById('savedDrawingImg');
@@ -819,8 +809,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     // Google Maps link
                     pdf.setTextColor(0, 0, 255);
-                    pdf.textWithLink('Google Maps (Web Browser)', margin + 60, y, { url: mapsWebLink });
-                    y += 5;
+                    pdf.textWithLink('Google Maps (Mobile)', margin + 60, y, { url: mapsWebLink });
+                    y += 10;
 
                     // Maps App link  
                     //pdf.textWithLink('Maps App (Mobile Devices)', margin + 60, y, { url: mapsAppLink });
@@ -919,6 +909,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const areaSelection = document.getElementById('areaSelection');
 
     // Tool buttons
+    //const toolButtons = document.querySelectorAll('.tool-btn');
     const penToolButton = document.getElementById('penTool');
     const colorOptions = document.querySelectorAll('.color-option');
 
@@ -940,46 +931,29 @@ document.addEventListener('DOMContentLoaded', function () {
     let selectionStartX, selectionStartY;
     let selectionEndX, selectionEndY;
 
-
     // Initialize canvas
     function initCanvas() {
-        // Always reset to normal compositing and fully white base
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.restore();
-
-        // Set brush properties
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
-
-        // Set visible white background even if canvas becomes transparent
-        canvas.style.backgroundColor = 'white';
-
         updateDrawingSettings();
     }
 
-
     // Update drawing settings based on current tool and options
-
     function updateDrawingSettings() {
-        // Always reset to normal drawing mode first
-        ctx.globalCompositeOperation = 'source-over';
-
         if (currentTool === 'eraser') {
-            // Use eraser mode safely
+            ctx.strokeStyle = 'white';
             ctx.globalCompositeOperation = 'destination-out';
-            ctx.strokeStyle = 'rgba(0,0,0,1)'; // color doesn't matter in destination-out mode
             ctx.lineWidth = currentEraserSize;
             currentSizeDisplay.textContent = `${currentEraserSize}px`;
         } else {
             ctx.strokeStyle = currentColor;
+            ctx.globalCompositeOperation = 'source-over';
             ctx.lineWidth = currentBrushSize;
             currentSizeDisplay.textContent = `${currentBrushSize}px`;
         }
     }
-
 
     // Get accurate mouse/touch coordinates relative to canvas
     function getCoordinates(e) {
@@ -1194,6 +1168,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         // Tool buttons
+        // Tool buttons - UPDATED: Only pen tool now
         penToolButton.addEventListener('click', function () {
             currentTool = 'pen';
             penToolButton.classList.add('active');
@@ -1216,22 +1191,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Action buttons
         document.getElementById('startDrawing').addEventListener('click', function () {
-            currentTool = 'pen';
-            penToolButton.classList.add('active');
-            eraserOptions.style.display = 'none';
-            updateDrawingSettings();
-            statusText.textContent = 'Pen tool selected';
-            currentToolDisplay.textContent = 'Pen';
-        });
+        currentTool = 'pen';
+        penToolButton.classList.add('active');
+        eraserOptions.style.display = 'none';
+        updateDrawingSettings();
+        statusText.textContent = 'Pen tool selected';
+        currentToolDisplay.textContent = 'Pen';
+    });
 
         document.getElementById('eraserBtn').addEventListener('click', function () {
-            currentTool = 'eraser';
-            penToolButton.classList.remove('active');
-            eraserOptions.style.display = 'block';
-            updateDrawingSettings();
-            statusText.textContent = 'Eraser tool selected';
-            currentToolDisplay.textContent = 'Eraser';
-        });
+        currentTool = 'eraser';
+        penToolButton.classList.remove('active');
+        eraserOptions.style.display = 'block';
+        updateDrawingSettings();
+        statusText.textContent = 'Eraser tool selected';
+        currentToolDisplay.textContent = 'Eraser';
+    });
 
         document.getElementById('clearDrawing').addEventListener('click', function () {
             if (confirm('Are you sure you want to clear the canvas?')) {
@@ -1464,4 +1439,9 @@ document.addEventListener('DOMContentLoaded', function () {
     setupEventListeners();
     updateSavedDrawingsList();
     savedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+
 });
+
+
+
