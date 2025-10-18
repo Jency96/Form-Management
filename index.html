@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Management Form</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#3498db">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Task Form">
+
+    <!-- Essential Icons -->
+    <link rel="apple-touch-icon" href="apple-icon-180x180.png">
+    <link rel="icon" type="image/png" href="android-icon-192x192.png">
+    <link rel="icon" type="image/png" href="favicon-32x32.png">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Bootstrap CSS -->
+    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"> -->
+
+    <!-- bootstrap css -->
+    <link rel="stylesheet" href="bootstrap-5.3.8-dist/css/bootstrap.min.css">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- PDF Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Add these with your other CDN links -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <!-- link to css file -->
+    <link rel="stylesheet" href="form.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-12">
+                <div class="form-container">
+                    <div class="header">
+                        <h1><i class="fas fa-tasks"></i> Task Management Form</h1>
+                        <p class="lead">Fill out the form below to create a new task document</p>
+                    </div>
+
+                    <form id="taskForm">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="taskName" class="form-label">Task Name</label>
+                                    <input type="text" class="form-control" id="taskName">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="taskNo" class="form-label">Task No</label>
+                                    <input type="text" class="form-control" id="taskNo">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="accountNo" class="form-label">Account No</label>
+                                    <input type="text" class="form-control" id="accountNo">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="companyName" class="form-label">Company Name </label>
+                                    <input type="text" class="form-control" id="companyName">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="transformNo" class="form-label">Transform No </label>
+                                    <input type="text" class="form-control" id="transformNo">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="date" class="form-label">Date</label>
+                                    <input type="date" class="form-control" id="date">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- add current location input -->
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="taskLocation" class="form-label">Location</label>
+                                    <input type="text" class="form-control" id="taskLocation" readonly
+                                        placeholder="No location selected">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="button" class="btn btn-beautiful btn-primary-beautiful w-100"
+                                        id="openLocationPicker">
+                                        <i class="fas fa-map-marker-alt"></i> Current Location
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" rows="4"
+                                placeholder="Enter task description..."></textarea>
+                        </div>
+
+                        <!-- Photo Section -->
+                        <div class="form-section">
+                            <h3 class="section-title"><i class="fas fa-camera"></i> Photo Capture</h3>
+                            <div class="photo-options">
+                                <div class="photo-btn" id="takePhoto">
+                                    <i class="fas fa-camera"></i>
+                                    <p>Take Photo with Camera</p>
+                                    <small class="text-muted">Direct camera access</small>
+                                </div>
+                            </div>
+                            <div id="photoStatus" class="mt-3" style="display: none;">
+                                <div class="alert alert-success">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span id="photoStatusText">Photo ready to attach</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Drawing/Signature Section -->
+                        <div class="form-section">
+                            <h3 class="section-title"><i class="fas fa-pen"></i> Drawing/Signature</h3>
+
+                            <div class="drawing-app">
+                                <div class="toolbar">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="tool-section">
+                                                <div class="tool-section-title">
+                                                    <i class="fas fa-pen"></i> Drawing Tools
+                                                </div>
+                                                <div class="tool-buttons">
+                                                    <button class="tool-btn active" id="penTool" data-tool="pen">
+                                                        <i class="fas fa-pen"></i>
+                                                        <span>Pen</span>
+                                                    </button>
+                                                    <button class="tool-btn" id="eraserTool" data-tool="eraser">
+                                                        <i class="fas fa-eraser"></i>
+                                                        <span>Eraser</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div class="tool-section">
+                                                <div class="tool-section-title">
+                                                    <i class="fas fa-brush"></i> Brush Size
+                                                </div>
+                                                <input type="range" class="form-range" id="brushSize" min="1" max="50"
+                                                    value="5">
+                                                <div class="d-flex justify-content-between">
+                                                    <small>Thin</small>
+                                                    <small id="brushSizeValue">5px</small>
+                                                    <small>Thick</small>
+                                                </div>
+                                            </div>
+
+                                            <div class="tool-section eraser-options" id="eraserOptions">
+                                                <div class="tool-section-title">
+                                                    <i class="fas fa-eraser"></i> Eraser Size
+                                                </div>
+                                                <input type="range" class="form-range" id="eraserSize" min="5" max="100"
+                                                    value="20">
+                                                <div class="d-flex justify-content-between">
+                                                    <small>Small</small>
+                                                    <small id="eraserSizeValue">20px</small>
+                                                    <small>Large</small>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <button type="button" class="btn btn-sm btn-outline-warning w-100"
+                                                        id="clearAreaBtn">
+                                                        <i class="fas fa-broom"></i> Clear Area
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <div class="tool-section">
+                                                <div class="tool-section-title">
+                                                    <i class="fas fa-palette"></i> Colors
+                                                </div>
+                                                <div class="color-palette">
+                                                    <div class="color-option active" style="background-color: #000000;"
+                                                        data-color="#000000"></div>
+                                                    <div class="color-option" style="background-color: #ff0000;"
+                                                        data-color="#ff0000"></div>
+                                                    <div class="color-option" style="background-color: #0000ff;"
+                                                        data-color="#0000ff"></div>
+                                                    <div class="color-option" style="background-color: #008000;"
+                                                        data-color="#008000"></div>
+                                                    <div class="color-option" style="background-color: #ffff00;"
+                                                        data-color="#ffff00"></div>
+                                                    <div class="color-option" style="background-color: #ff00ff;"
+                                                        data-color="#ff00ff"></div>
+                                                    <div class="color-option" style="background-color: #00ffff;"
+                                                        data-color="#00ffff"></div>
+                                                    <div class="color-option" style="background-color: #ffa500;"
+                                                        data-color="#ffa500"></div>
+                                                    <div class="color-option" style="background-color: #800080;"
+                                                        data-color="#800080"></div>
+                                                    <div class="color-option" style="background-color: #a52a2a;"
+                                                        data-color="#a52a2a"></div>
+                                                    <div class="color-option"
+                                                        style="background-color: #ffffff; border: 1px solid #ccc;"
+                                                        data-color="#ffffff"></div>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <label for="customColor" class="form-label">Custom Color:</label>
+                                                    <input type="color" class="form-control form-control-color"
+                                                        id="customColor" value="#000000" title="Choose custom color">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <div class="tool-section">
+                                                <div class="tool-section-title">
+                                                    <i class="fas fa-tools"></i> Actions
+                                                </div>
+                                                <div class="d-grid gap-2">
+                                                    <button type="button"
+                                                        class="btn btn-beautiful btn-primary-beautiful"
+                                                        id="startDrawing">
+                                                        <i class="fas fa-pen"></i> Start Drawing
+                                                    </button>
+                                                    <button type="button"
+                                                        class="btn btn-beautiful btn-warning-beautiful" id="eraserBtn">
+                                                        <i class="fas fa-eraser"></i> Eraser
+                                                    </button>
+                                                    <button type="button"
+                                                        class="btn btn-beautiful btn-secondary-beautiful"
+                                                        id="clearDrawing">
+                                                        <i class="fas fa-broom"></i> Clear Canvas
+                                                    </button>
+                                                    <button type="button"
+                                                        class="btn btn-beautiful btn-success-beautiful"
+                                                        id="saveDrawing">
+                                                        <i class="fas fa-save"></i> Save Drawing
+                                                    </button>
+                                                    <button type="button" class="btn btn-beautiful btn-danger-beautiful"
+                                                        id="deleteSavedDrawing">
+                                                        <i class="fas fa-trash"></i> Delete Saved
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="canvas-container">
+                                    <canvas id="drawingCanvas" width="800" height="500"></canvas>
+                                    <div class="cursor-position" id="cursorPosition">X: 0, Y: 0</div>
+                                    <div class="eraser-preview" id="eraserPreview"></div>
+                                    <div class="area-selection" id="areaSelection"></div>
+                                </div>
+
+                                <div class="status-bar">
+                                    <div class="status-indicator">
+                                        <div class="status-dot ready"></div>
+                                        <span id="statusText">Ready to draw</span>
+                                    </div>
+                                    <div>
+                                        <span>Tool: <span id="currentTool">Pen</span> | Size: <span
+                                                id="currentSize">5px</span></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="preview-container mt-4">
+                                <div class="preview-title">
+                                    <div>
+                                        <i class="fas fa-image"></i> Saved Drawing Preview
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                        id="toggleSavedDrawings">
+                                        <i class="fas fa-list"></i> View All Saved
+                                    </button>
+                                </div>
+                                <div id="drawingStatus" class="alert alert-success" style="display: none;">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span id="drawingStatusText">Drawing saved successfully!</span>
+                                </div>
+                                <div id="deleteStatus" class="alert alert-danger" style="display: none;">
+                                    <i class="fas fa-trash"></i>
+                                    <span id="deleteStatusText">Drawing deleted successfully!</span>
+                                </div>
+                                <img id="savedDrawingImg" class="preview-image" alt="Saved drawing preview">
+                                <div class="preview-actions" id="previewActions" style="display: none;">
+                                    <button type="button" class="btn btn-beautiful btn-danger-beautiful"
+                                        id="deleteCurrentDrawing">
+                                        <i class="fas fa-trash"></i> Delete This Drawing
+                                    </button>
+                                    <button type="button" class="btn btn-beautiful btn-primary-beautiful"
+                                        id="loadCurrentDrawing">
+                                        <i class="fas fa-edit"></i> Load to Canvas
+                                    </button>
+                                </div>
+
+                                <div class="saved-drawings-list" id="savedDrawingsList">
+                                    <div class="text-center text-muted py-3" id="noSavedDrawings">
+                                        No saved drawings yet
+                                    </div>
+                                    <!-- Saved drawings will be listed here dynamically -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Generate Document Button -->
+                        <button type="button" class="btn btn-beautiful btn-primary-beautiful  w-100 py-3"
+                            id="generateDoc">
+                            <i class="fas fa-file-alt"></i> Generate Document
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Document Preview Section -->
+                <div class="preview-container">
+                    <h2 class="section-title"><i class="fas fa-eye"></i> Document Preview</h2>
+                    <div class="document-preview" id="documentPreview">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-file-alt fa-3x mb-3"></i>
+                            <p>Your document preview will appear here after filling the form and clicking "Generate
+                                Document".</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-beautiful btn-success-beautiful w-100 py-3 mt-3"
+                        id="downloadDoc" style="display: none;">
+                        <i class="fas fa-download"></i> Download Document
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Camera Modal -->
+    <div id="cameraModal" class="modal fade" tabindex="-1" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered modal-fullscreen">
+            <div class="modal-content bg-dark">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title text-white">
+                        <i class="fas fa-camera"></i> Camera
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0 text-center">
+                    <video id="cameraPreview" autoplay playsinline
+                        style="width: 100%; height: 70vh; object-fit: cover;"></video>
+                    <div id="capturedPhotoContainer" style="display: none;">
+                        <img id="capturedPhoto" style="max-width: 100%; max-height: 70vh;">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 justify-content-center">
+                    <button class="btn btn-beautiful btn-success-beautiful btn-lg rounded-circle" id="captureBtn"
+                        style="width: 80px; height: 80px;">
+                        <i class="fas fa-camera fa-2x"></i>
+                    </button>
+                    <button class="btn btn-beautiful btn-primary-beautiful btn-lg rounded-circle" id="retakeBtn"
+                        style="width: 80px; height: 80px; display: none;">
+                        <i class="fas fa-redo fa-2x"></i>
+                    </button>
+                    <button class="btn btn-beautiful btn-success-beautiful btn-lg px-4" id="usePhotoBtn"
+                        style="display: none;">
+                        <i class="fas fa-check"></i> Use Photo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Location Picker Modal -->
+    <div id="locationPickerModal" class="modal fade" tabindex="-1" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-map-marker-alt"></i> Select Location
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <!-- Your exact location picker code goes here -->
+                    <div class="container" style="max-width:100%; margin:0; box-shadow:none;">
+                        <div class="header">
+                            <div class="search-container">
+                                <input type="text" id="locationInput" class="search-input"
+                                    placeholder="Search location...">
+                                <button id="searchButton" class="search-btn"><i class="fas fa-search"></i></button>
+                                <div id="searchResults" class="search-results"></div>
+                            </div>
+                        </div>
+                        <div id="map" class="map"></div>
+                        <img class="pin" src="https://cdn-icons-png.flaticon.com/512/684/684908.png">
+                        <button id="gpsBtn" class="gps-btn"><i class="fas fa-location-arrow"
+                                style="color:#4a90e2;"></i></button>
+                        <div class="zoom-controls">
+                            <button id="zoomIn"><i class="fas fa-plus"></i></button>
+                            <button id="zoomOut"><i class="fas fa-minus"></i></button>
+                        </div>
+                        <div class="panel">
+                            <div class="address" id="addressLine1">Detecting location...</div>
+                            <div class="area" id="addressLine2"></div>
+                            <div class="mini-preview">
+                                <div class="coordinate">
+                                    <div class="coordinate-label">Latitude</div>
+                                    <div class="coordinate-value" id="latitudeValue">-</div>
+                                </div>
+                                <div class="coordinate">
+                                    <div class="coordinate-label">Longitude</div>
+                                    <div class="coordinate-value" id="longitudeValue">-</div>
+                                </div>
+                                <div class="coordinate">
+                                    <div class="coordinate-label">Accuracy</div>
+                                    <div class="coordinate-value" id="accuracyValue">-</div>
+                                </div>
+                            </div>
+                            <div class="btns">
+                                <button id="retryBtn" class="btn btn-secondary"><i class="fas fa-redo"></i>
+                                    Retry</button>
+                                <button id="confirmLocationBtn" class="btn btn-primary"><i
+                                        class="fas fa-check-circle"></i> Confirm</button>
+                            </div>
+                        </div>
+                        <div id="loading" class="loading">
+                            <div class="spinner"></div>
+                            <p>Detecting location...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden canvas for photo processing -->
+    <canvas id="photoCanvas" style="display: none;"></canvas>
+
+    <!-- Bootstrap JS -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script> -->
+
+    <!-- bootstrap js file -->
+    <script src="bootstrap-5.3.8-dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Your JavaScript -->
+    <script src="form.js"></script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(function (registration) {
+                        console.log('Service Worker registered with scope:', registration.scope);
+                    })
+                    .catch(function (error) {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+
+</html>
