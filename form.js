@@ -812,8 +812,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     y += 5;
 
                     // Maps App link  
-                    pdf.textWithLink('Maps App (Mobile Devices)', margin + 60, y, { url: mapsAppLink });
-                    y += 10;
+                    //pdf.textWithLink('Maps App (Mobile Devices)', margin + 60, y, { url: mapsAppLink });
+                    //y += 10;
 
                     // Reset text color
                     pdf.setTextColor(0, 0, 0);
@@ -929,29 +929,46 @@ document.addEventListener('DOMContentLoaded', function () {
     let selectionStartX, selectionStartY;
     let selectionEndX, selectionEndY;
 
+
     // Initialize canvas
     function initCanvas() {
+        // Always reset to normal compositing and fully white base
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+
+        // Set brush properties
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
+
+        // Set visible white background even if canvas becomes transparent
+        canvas.style.backgroundColor = 'white';
+
         updateDrawingSettings();
     }
 
+
     // Update drawing settings based on current tool and options
+    
     function updateDrawingSettings() {
+        // Always reset to normal drawing mode first
+        ctx.globalCompositeOperation = 'source-over';
+
         if (currentTool === 'eraser') {
-            ctx.strokeStyle = 'white';
+            // Use eraser mode safely
             ctx.globalCompositeOperation = 'destination-out';
+            ctx.strokeStyle = 'rgba(0,0,0,1)'; // color doesn't matter in destination-out mode
             ctx.lineWidth = currentEraserSize;
             currentSizeDisplay.textContent = `${currentEraserSize}px`;
         } else {
             ctx.strokeStyle = currentColor;
-            ctx.globalCompositeOperation = 'source-over';
             ctx.lineWidth = currentBrushSize;
             currentSizeDisplay.textContent = `${currentBrushSize}px`;
         }
     }
+
 
     // Get accurate mouse/touch coordinates relative to canvas
     function getCoordinates(e) {
