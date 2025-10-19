@@ -1,13 +1,14 @@
-
 {
     "name": "Task Management Form",
     "short_name": "TaskForm",
-    "description": "Mobile task management application",
-    "start_url": "/task-management-form/",
+    "description": "Offline task management application with location tracking, photo capture, and PDF generation",
+    "start_url": "./",
+    "scope": "./",
     "display": "standalone",
-    "background_color": "#f8f9fa",
-    "theme_color": "#3498db",
+    "background_color": "#ffffff",
+    "theme_color": "#4a6bff",
     "orientation": "portrait",
+    "categories": ["business", "productivity"],
     "icons": [
         {
             "src": "android-icon-192x192.png",
@@ -16,7 +17,12 @@
         },
         {
             "src": "apple-icon-180x180.png",
-            "sizes": "180x180",
+            "sizes": "180x180", 
+            "type": "image/png"
+        },
+        {
+            "src": "favicon-32x32.png",
+            "sizes": "32x32",
             "type": "image/png"
         }
     ]
