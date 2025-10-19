@@ -951,7 +951,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     // Update drawing settings based on current tool and options
-    
+
     function updateDrawingSettings() {
         // Always reset to normal drawing mode first
         ctx.globalCompositeOperation = 'source-over';
@@ -1157,9 +1157,7 @@ document.addEventListener('DOMContentLoaded', function () {
         brushSize.addEventListener('input', function () {
             currentBrushSize = this.value;
             brushSizeValue.textContent = `${currentBrushSize}px`;
-            if (currentTool !== 'eraser') {
-                updateDrawingSettings();
-            }
+            updateDrawingSettings();
         });
 
         // Eraser size
@@ -1187,19 +1185,15 @@ document.addEventListener('DOMContentLoaded', function () {
             button.addEventListener('click', function () {
                 toolButtons.forEach(btn => {
                     btn.classList.remove('active');
-                    btn.classList.remove('eraser-active');
+
                 });
 
                 const tool = this.getAttribute('data-tool');
                 currentTool = tool;
 
-                if (tool === 'eraser') {
-                    this.classList.add('eraser-active');
-                    eraserOptions.style.display = 'block';
-                } else {
-                    this.classList.add('active');
-                    eraserOptions.style.display = 'none';
-                }
+                // Since we only have pen tool now, always set active and hide eraser options
+                this.classList.add('active');
+                eraserOptions.style.display = 'none';
 
                 updateDrawingSettings();
                 statusText.textContent = `${currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} tool selected`;
@@ -1223,7 +1217,7 @@ document.addEventListener('DOMContentLoaded', function () {
             currentTool = 'pen';
             toolButtons.forEach(btn => {
                 btn.classList.remove('active');
-                btn.classList.remove('eraser-active');
+
                 if (btn.getAttribute('data-tool') === 'pen') {
                     btn.classList.add('active');
                 }
@@ -1425,10 +1419,8 @@ document.addEventListener('DOMContentLoaded', function () {
         startX = lastX;
         startY = lastY;
 
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
-        }
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
 
         statusText.textContent = 'Drawing...';
     }
@@ -1440,11 +1432,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const [x, y] = getCoordinates(e);
 
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            ctx.lineTo(x, y);
-            ctx.stroke();
-            [lastX, lastY] = [x, y];
-        }
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        [lastX, lastY] = [x, y];
     }
 
     function stopDrawing() {
