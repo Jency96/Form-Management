@@ -1,16 +1,14 @@
-// ============================================================
-// Enhanced Service Worker (v1.3) for Task Management Form
-// - Offline caching for core assets, Leaflet, jsPDF, etc.
-// - Cache-first with network fallback strategy
-// - Safe handling for partial caching + updates
-// ============================================================
+// ============================
+// Task Form - Minimal Service Worker (v2.0)
+// Offline caching for all core assets
+// ============================
 
-const CACHE_NAME = 'task-form-v1.3';
-const urlsToCache = [
+const CACHE_NAME = 'task-form-v2.0';
+const ASSETS = [
   './',
   './index.html',
-  './form.css',
   './form.js',
+  './form.css',
   './manifest.json',
 
   // Local Bootstrap files
@@ -22,7 +20,7 @@ const urlsToCache = [
   './apple-icon-180x180.png',
   './favicon-32x32.png',
 
-  // External libraries
+  // CDN dependencies (needed for offline)
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
   'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js',
@@ -31,84 +29,54 @@ const urlsToCache = [
 ];
 
 // -----------------------------
-// Install event
+// Install - cache essential assets
 // -----------------------------
 self.addEventListener('install', event => {
-  console.log('📦 Installing service worker...');
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('🗂️ Caching essential files...');
-        return cache.addAll(urlsToCache);
-      })
-      .catch(err => console.warn('⚠️ Some resources failed to cache:', err))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
-  self.skipWaiting(); // Activate immediately
+  self.skipWaiting();
 });
 
 // -----------------------------
-// Activate event
+// Activate - clear old caches
 // -----------------------------
 self.addEventListener('activate', event => {
-  console.log('🚀 Activating new service worker...');
   event.waitUntil(
-    caches.keys().then(cacheNames =>
-      Promise.all(
-        cacheNames.map(name => {
-          if (name !== CACHE_NAME) {
-            console.log('🧹 Deleting old cache:', name);
-            return caches.delete(name);
-          }
-        })
-      )
+    caches.keys().then(keys =>
+      Promise.all(keys.map(key => key !== CACHE_NAME && caches.delete(key)))
     )
   );
-  self.clients.claim(); // Start controlling pages immediately
+  self.clients.claim();
 });
 
 // -----------------------------
-// Fetch event (cache-first, fallback to network)
+// Fetch - cache-first strategy
 // -----------------------------
 self.addEventListener('fetch', event => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
-
   event.respondWith(
-    (async () => {
-      try {
-        // Try to return from cache first
-        const cached = await caches.match(event.request);
-        if (cached) return cached;
-
-        // Otherwise, fetch from the network
-        const response = await fetch(event.request);
-
-        // If valid response, clone & cache it
-        if (
-          response &&
-          response.status === 200 &&
-          response.type === 'basic' &&
-          event.request.url.startsWith('http')
-        ) {
-          const cache = await caches.open(CACHE_NAME);
-          cache.put(event.request, response.clone());
-        }
-
-        return response;
-      } catch (error) {
-        console.warn('⚠️ Fetch failed:', error);
-
-        // Fallback for navigation requests (SPA/offline shell)
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-
-        // Return basic fallback for others
-        return new Response('⚠️ You are offline. Please reconnect.', {
-          status: 408,
-          headers: { 'Content-Type': 'text/plain' }
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      return fetch(event.request)
+        .then(response => {
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => {
+          // Offline fallback for main navigation
+          if (event.request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+          return new Response('You are offline. Please reconnect.', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain' }
+          });
         });
-      }
-    })()
+    })
   );
 });
