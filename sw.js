@@ -1,23 +1,28 @@
-// Enhanced Service Worker for Task Management Form
-const CACHE_NAME = 'task-form-v1.2';
+// ============================================================
+// Enhanced Service Worker (v1.3) for Task Management Form
+// - Offline caching for core assets, Leaflet, jsPDF, etc.
+// - Cache-first with network fallback strategy
+// - Safe handling for partial caching + updates
+// ============================================================
+
+const CACHE_NAME = 'task-form-v1.3';
 const urlsToCache = [
-  // Core application files
   './',
   './index.html',
   './form.css',
   './form.js',
   './manifest.json',
-  
+
   // Local Bootstrap files
   './bootstrap-5.3.8-dist/css/bootstrap.min.css',
   './bootstrap-5.3.8-dist/js/bootstrap.bundle.min.js',
-  
-  // Your icon files
+
+  // Icons
   './android-icon-192x192.png',
   './apple-icon-180x180.png',
   './favicon-32x32.png',
-  
-  // External CDN resources (cache these for offline)
+
+  // External libraries
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
   'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js',
@@ -25,93 +30,85 @@ const urlsToCache = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
 ];
 
-// Install event - cache essential resources
+// -----------------------------
+// Install event
+// -----------------------------
 self.addEventListener('install', event => {
-  console.log('Service Worker installing...');
-  
+  console.log('📦 Installing service worker...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Caching app shell and resources');
-        // Cache all resources, but don't fail if some miss
-        return cache.addAll(urlsToCache).catch(error => {
-          console.log('Some resources failed to cache:', error);
-          // Continue even if some files fail
-        });
+        console.log('🗂️ Caching essential files...');
+        return cache.addAll(urlsToCache);
       })
+      .catch(err => console.warn('⚠️ Some resources failed to cache:', err))
   );
-  
-  // Force the waiting service worker to become active
-  self.skipWaiting();
+  self.skipWaiting(); // Activate immediately
 });
 
-// Activate event - clean up old caches
+// -----------------------------
+// Activate event
+// -----------------------------
 self.addEventListener('activate', event => {
-  console.log('Service Worker activating...');
-  
+  console.log('🚀 Activating new service worker...');
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          // Delete old caches from previous versions
-          if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
+    caches.keys().then(cacheNames =>
+      Promise.all(
+        cacheNames.map(name => {
+          if (name !== CACHE_NAME) {
+            console.log('🧹 Deleting old cache:', name);
+            return caches.delete(name);
           }
         })
-      );
-    })
+      )
+    )
   );
-  
-  // Take control of all clients immediately
-  self.clients.claim();
+  self.clients.claim(); // Start controlling pages immediately
 });
 
-// Fetch event - serve cached resources when possible
+// -----------------------------
+// Fetch event (cache-first, fallback to network)
+// -----------------------------
 self.addEventListener('fetch', event => {
-  // Skip non-GET requests and browser extensions
+  // Only handle GET requests
   if (event.request.method !== 'GET') return;
-  
+
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Return cached version if found
-        if (response) {
-          return response;
+    (async () => {
+      try {
+        // Try to return from cache first
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+
+        // Otherwise, fetch from the network
+        const response = await fetch(event.request);
+
+        // If valid response, clone & cache it
+        if (
+          response &&
+          response.status === 200 &&
+          response.type === 'basic' &&
+          event.request.url.startsWith('http')
+        ) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(event.request, response.clone());
         }
-        
-        // Otherwise fetch from network
-        return fetch(event.request)
-          .then(networkResponse => {
-            // Don't cache external API calls, only our app resources
-            if (!event.request.url.startsWith('http') || 
-                !networkResponse || 
-                networkResponse.status !== 200 || 
-                networkResponse.type !== 'basic') {
-              return networkResponse;
-            }
-            
-            // Cache the new resource
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
-              });
-            
-            return networkResponse;
-          })
-          .catch(() => {
-            // If network fails and it's a page navigation, return the app shell
-            if (event.request.mode === 'navigate') {
-              return caches.match('./index.html');
-            }
-            
-            // For other failed requests, you could return a custom offline page
-            return new Response('Network error happened', {
-              status: 408,
-              headers: { 'Content-Type': 'text/plain' }
-            });
-          });
-      })
+
+        return response;
+      } catch (error) {
+        console.warn('⚠️ Fetch failed:', error);
+
+        // Fallback for navigation requests (SPA/offline shell)
+        if (event.request.mode === 'navigate') {
+          return caches.match('./index.html');
+        }
+
+        // Return basic fallback for others
+        return new Response('⚠️ You are offline. Please reconnect.', {
+          status: 408,
+          headers: { 'Content-Type': 'text/plain' }
+        });
+      }
+    })()
   );
 });
