@@ -1,53 +1,195 @@
-// ============================
-// Full App - form.js
-// Offline-ready: camera, drawing, location, PDF (with alerts)
-// Matches provided index.html element IDs
-// ============================
+/* ============================
+   Final form.js - Full App
+   (offline-ready, preview + rename modal,
+    camera, drawing, location, PDF download)
+   ============================ */
 
-// ---- Service worker registration (uses sw.js as in your index.html) ----
+/* ---------------------------
+   Service Worker registration
+   --------------------------- */
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function () {
+  window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
       .then(reg => console.log('✅ Service Worker registered:', reg.scope))
       .catch(err => console.warn('⚠️ Service Worker registration failed:', err));
   });
 }
 
-// ---- DOM ready: wire up UI and init modules ----
+/* ---------------------------
+   DOM Ready: initialize everything
+   --------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize modules
+  createRenameModal();         // create rename modal in DOM (Bootstrap)
   initCameraModule();
   initDrawingModule();
   initLocationPicker();
-  initPdfButtons();
+  initPreviewAndDownloadFlow();
 });
 
-/* ------------------------------------------------------------------------
-  PDF generation + download (Blob method) with user alerts
--------------------------------------------------------------------------*/
-function initPdfButtons() {
+/* ===================================================================
+   Preview & Download flow (Generate preview -> show download -> rename)
+   =================================================================== */
+function initPreviewAndDownloadFlow() {
   const generateBtn = document.getElementById('generateDoc');
-  if (!generateBtn) {
-    console.warn('generateDoc button not found');
+  const downloadBtn = document.getElementById('downloadDoc');
+  const previewEl = document.getElementById('documentPreview');
+
+  if (!generateBtn || !previewEl || !downloadBtn) {
+    console.warn('Preview/download elements missing');
     return;
   }
 
-  generateBtn.addEventListener('click', async (e) => {
+  generateBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    // Build preview
+    buildDocumentPreview();
+    // Show download button
+    downloadBtn.style.display = 'block';
+    downloadBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
 
-    // generate and download PDF
-    await generateAndDownloadPdf();
+  // Download button opens rename modal
+  downloadBtn.addEventListener('click', () => {
+    const modal = new bootstrap.Modal(document.getElementById('renameModal'), { backdrop: 'static' });
+    // set default name
+    const taskNo = document.getElementById('taskNo')?.value || '';
+    const defaultName = `Task-Document-${taskNo || 'Unknown'}.pdf`;
+    document.getElementById('fileNameInput').value = defaultName;
+    modal.show();
   });
 }
 
-async function generateAndDownloadPdf() {
+/* ---------------------------
+   Build HTML Document Preview
+   --------------------------- */
+function buildDocumentPreview() {
+  const previewEl = document.getElementById('documentPreview');
+  if (!previewEl) return;
+
+  // Collect form fields
+  const taskName = sanitizeText('taskName');
+  const taskNo = sanitizeText('taskNo');
+  const accountNo = sanitizeText('accountNo');
+  const companyName = sanitizeText('companyName');
+  const transformNo = sanitizeText('transformNo');
+  const dateValue = sanitizeText('date');
+  const locationValue = sanitizeText('taskLocation');
+  const address = sanitizeText('address');
+  const description = sanitizeText('description');
+  const lat = document.getElementById('latitudeValue')?.textContent || '';
+  const lng = document.getElementById('longitudeValue')?.textContent || '';
+
+  // Photo & drawing preview sources
+  const photoPreview = document.getElementById('photoPreview');
+  const capturedPhoto = document.getElementById('capturedPhoto');
+  let photoSrc = '';
+  if (photoPreview && photoPreview.src) photoSrc = photoPreview.src;
+  if (!photoSrc && capturedPhoto && capturedPhoto.src) photoSrc = capturedPhoto.src;
+
+  const drawingCanvas = document.getElementById('drawingCanvas');
+  let drawingSrc = drawingCanvas ? drawingCanvas.toDataURL('image/png') : '';
+
+  // Build HTML preview (simple but styled)
+  const html = `
+    <div class="card p-3">
+      <h3 class="text-center mb-2">TASK DOCUMENT</h3>
+      <p class="text-center text-muted">Generated on: ${new Date().toLocaleDateString()}</p>
+      <hr />
+      <h5>TASK DETAILS</h5>
+      <div class="row">
+        <div class="col-6"><strong>Task Name:</strong> ${taskName || '<em>Not provided</em>'}</div>
+        <div class="col-6"><strong>Task No:</strong> ${taskNo || '<em>Not provided</em>'}</div>
+      </div>
+      <div class="row mt-2">
+        <div class="col-6"><strong>Account No:</strong> ${accountNo || '<em>Not provided</em>'}</div>
+        <div class="col-6"><strong>Company Name:</strong> ${companyName || '<em>Not provided</em>'}</div>
+      </div>
+      <div class="row mt-2">
+        <div class="col-6"><strong>Transform No:</strong> ${transformNo || '<em>Not provided</em>'}</div>
+        <div class="col-6"><strong>Date:</strong> ${dateValue || '<em>Not provided</em>'}</div>
+      </div>
+
+      <h5 class="mt-3">Location</h5>
+      <div><strong>Location:</strong> ${locationValue || '<em>Not provided</em>'}</div>
+      <div><strong>Coordinates:</strong> ${lat && lng ? `${lat}, ${lng}` : '<em>Not provided</em>'}</div>
+
+      <h5 class="mt-3">Address</h5>
+      <div>${address || '<em>Not provided</em>'}</div>
+
+      <h5 class="mt-3">Description</h5>
+      <div>${description || '<em>Not provided</em>'}</div>
+
+      <h5 class="mt-3">Attachments</h5>
+      <div class="row">
+        <div class="col-6 text-center">
+          <strong>Photo</strong><br />
+          ${photoSrc ? `<img src="${photoSrc}" alt="Photo" style="max-width:100%; max-height:200px; border:1px solid #ccc;" />` : '<em>No photo attached</em>'}
+        </div>
+        <div class="col-6 text-center">
+          <strong>Drawing</strong><br />
+          ${drawingSrc ? `<img src="${drawingSrc}" alt="Drawing" style="max-width:100%; max-height:200px; border:1px solid #ccc;" />` : '<em>No drawing attached</em>'}
+        </div>
+      </div>
+    </div>
+  `;
+
+  previewEl.innerHTML = html;
+}
+
+/* ---------------------------
+   Rename Modal creation (Bootstrap)
+   Creates an element with id="renameModal" and wiring
+   --------------------------- */
+function createRenameModal() {
+  if (document.getElementById('renameModal')) return; // already created
+
+  const modalHtml = `
+  <div class="modal fade" id="renameModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Save Document As</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <label for="fileNameInput" class="form-label">File name</label>
+          <input type="text" id="fileNameInput" class="form-control" />
+          <div class="form-text mt-2">You can change the file name before downloading.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="confirmDownloadBtn" class="btn btn-primary">Download</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+  // Wire modal button
+  document.getElementById('confirmDownloadBtn').addEventListener('click', async () => {
+    const input = document.getElementById('fileNameInput');
+    const name = (input?.value || `Task-Document-${Date.now()}`).trim();
+    const modal = bootstrap.Modal.getInstance(document.getElementById('renameModal'));
+    if (modal) modal.hide();
+
+    // Start PDF generation & download with chosen filename
+    await generatePdfAndDownload(name);
+  });
+}
+
+/* ===================================================================
+   PDF generation (creates PDF from form values + attachments) and download
+   - uses jsPDF safely
+   - alerts: Generating / Download started / Download completed
+   =================================================================== */
+async function generatePdfAndDownload(filename) {
   try {
-    // ensure jsPDF available
+    // safe jsPDF access
     const jsPDFConstructor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF || null;
     if (!jsPDFConstructor) {
-      alert('PDF library not loaded. Please open the app once online and refresh, then try again.');
-      console.error('jsPDF not found');
+      alert('PDF library not loaded. Please open app online once so library can cache, then try again.');
       return;
     }
 
@@ -55,44 +197,31 @@ async function generateAndDownloadPdf() {
     const margin = 15;
     const pageWidth = pdf.internal.pageSize.getWidth();
 
-    // collect form fields (IDs from your HTML)
-    const taskName = document.getElementById('taskName')?.value || '';
-    const taskNo = document.getElementById('taskNo')?.value || '';
-    const accountNo = document.getElementById('accountNo')?.value || '';
-    const companyName = document.getElementById('companyName')?.value || '';
-    const transformNo = document.getElementById('transformNo')?.value || '';
-    const date = document.getElementById('date')?.value || '';
-    const locationAddress = document.getElementById('taskLocation')?.value || '';
-    const address = document.getElementById('address')?.value || '';
-    const description = document.getElementById('description')?.value || '';
-    const latitude = document.getElementById('latitudeValue')?.textContent || '';
-    const longitude = document.getElementById('longitudeValue')?.textContent || '';
+    // Collect form values same as preview
+    const taskName = sanitizeText('taskName');
+    const taskNo = sanitizeText('taskNo');
+    const accountNo = sanitizeText('accountNo');
+    const companyName = sanitizeText('companyName');
+    const transformNo = sanitizeText('transformNo');
+    const dateValue = sanitizeText('date');
+    const locationValue = sanitizeText('taskLocation');
+    const address = sanitizeText('address');
+    const description = sanitizeText('description');
+    const lat = document.getElementById('latitudeValue')?.textContent || '';
+    const lng = document.getElementById('longitudeValue')?.textContent || '';
 
-    // photo: choose capturedPhoto if exists, or a created #photoPreview img (we create below when needed)
-    let photoImg = document.getElementById('photoPreview');
-    const capturedPhoto = document.getElementById('capturedPhoto');
-    if (!photoImg) {
-      // create hidden img element to use consistently
-      photoImg = document.createElement('img');
-      photoImg.id = 'photoPreview';
-      photoImg.style.display = 'none';
-      document.body.appendChild(photoImg);
-    }
-    if (capturedPhoto && capturedPhoto.src) photoImg.src = capturedPhoto.src;
-
-    const photoData = photoImg.src && !photoImg.src.includes('data:,') ? photoImg.src : null;
-
-    // drawing canvas -> data URL
+    // Photo and drawing data
+    let photoSrc = document.getElementById('photoPreview')?.src || document.getElementById('capturedPhoto')?.src || '';
+    if (photoSrc && photoSrc.includes('data:,') ) photoSrc = ''; // ignore empty
     const drawingCanvas = document.getElementById('drawingCanvas');
-    const drawingData = drawingCanvas ? drawingCanvas.toDataURL('image/png') : null;
+    const drawingData = drawingCanvas ? drawingCanvas.toDataURL('image/png') : '';
 
-    // --- Build PDF content (page 1) ---
+    // Build PDF page 1
     let y = margin + 5;
-
     pdf.setFontSize(14);
     pdf.setFont(undefined, 'bold');
-    const mainTitle = 'TASK DOCUMENT';
-    pdf.text(mainTitle, (pageWidth - pdf.getTextWidth(mainTitle)) / 2, y);
+    const title = 'TASK DOCUMENT';
+    pdf.text(title, (pageWidth - pdf.getTextWidth(title)) / 2, y);
     y += 8;
 
     pdf.setFontSize(11);
@@ -110,23 +239,20 @@ async function generateAndDownloadPdf() {
     y = addKeyValue(pdf, 'Account No:', accountNo, margin, y);
     y = addKeyValue(pdf, 'Company Name:', companyName, margin, y);
     y = addKeyValue(pdf, 'Transform No:', transformNo, margin, y);
-    y = addKeyValue(pdf, 'Date:', date, margin, y);
+    y = addKeyValue(pdf, 'Date:', dateValue, margin, y);
 
-    if (locationAddress || (latitude && longitude)) {
-      y = addKeyValue(pdf, 'Location:', locationAddress || 'Provided via map', margin, y);
-      if (latitude && longitude) {
-        y = addKeyValue(pdf, 'Coordinates:',
-          `Latitude: ${parseFloat(latitude).toFixed(6)} | Longitude: ${parseFloat(longitude).toFixed(6)}`,
-          margin, y);
-        // add clickable maps link
-        const mapsWebLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
+    if (locationValue || (lat && lng)) {
+      y = addKeyValue(pdf, 'Location:', locationValue || 'Selected via map', margin, y);
+      if (lat && lng) {
+        y = addKeyValue(pdf, 'Coordinates:', `Latitude: ${parseFloat(lat).toFixed(6)} | Longitude: ${parseFloat(lng).toFixed(6)}`, margin, y);
+        const mapsWebLink = `https://www.google.com/maps?q=${lat},${lng}`;
         pdf.setTextColor(0, 0, 255);
-        pdf.textWithLink('🌍 View on Google Maps', margin, y + 5, { url: mapsWebLink });
+        pdf.textWithLink('View on Google Maps', margin, y + 5, { url: mapsWebLink });
         pdf.setTextColor(0, 0, 0);
         y += 8;
       }
     } else {
-      y = addKeyValue(pdf, 'Location:', 'Not Provided', margin, y);
+      y = addKeyValue(pdf, 'Location:', 'Not provided', margin, y);
     }
 
     y = addKeyValue(pdf, 'Address:', address, margin, y);
@@ -134,34 +260,42 @@ async function generateAndDownloadPdf() {
     y += 8;
 
     y = addContent(pdf, 'ATTACHMENT SUMMARY', margin, y, { bold: true });
-    y = addKeyValue(pdf, 'Photo:', photoData ? 'Attached (see next page)' : 'Not Attached', margin, y);
-    y = addKeyValue(pdf, 'Drawing/Signature:', drawingData ? 'Attached (see next page)' : 'Not Attached', margin, y);
+    y = addKeyValue(pdf, 'Photo:', photoSrc ? 'Attached (see next page)' : 'Not attached', margin, y);
+    y = addKeyValue(pdf, 'Drawing/Signature:', drawingData ? 'Attached (see next page)' : 'Not attached', margin, y);
 
-    // --- Page 2: photo ---
-    if (photoData) {
+    // Add photo page if present
+    if (photoSrc) {
       pdf.addPage();
-      addFullPageImage(pdf, photoData, 'ATTACHED PHOTO', inferImageFormat(photoData));
+      try {
+        const fmt = inferImageFormat(photoSrc);
+        await addFullPageImagePdf(pdf, photoSrc, 'ATTACHED PHOTO', fmt);
+      } catch (err) {
+        console.warn('Failed to add photo to PDF', err);
+      }
     }
 
-    // --- Page 3: drawing ---
+    // Add drawing page if present
     if (drawingData) {
       pdf.addPage();
-      addFullPageImage(pdf, drawingData, 'DRAWING / SIGNATURE', 'PNG');
+      try {
+        await addFullPageImagePdf(pdf, drawingData, 'DRAWING / SIGNATURE', 'PNG');
+      } catch (err) {
+        console.warn('Failed to add drawing to PDF', err);
+      }
     }
 
-    // ---- Download using Blob (alerts as requested) ----
+    // Download via blob with alerts
     alert('📄 Generating your PDF, please wait...');
     const pdfBlob = pdf.output('blob');
     const url = URL.createObjectURL(pdfBlob);
 
-    // Download started alert
     alert('✅ Download started. Your PDF will appear shortly.');
 
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Task-Document-${taskNo || 'Unknown'}.pdf`;
-    document.body.appendChild(a);
+    a.download = filename || `Task-Document-${Date.now()}.pdf`;
     a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
 
@@ -171,81 +305,77 @@ async function generateAndDownloadPdf() {
       alert('✅ Download completed successfully! Check your Downloads folder.');
     }, 1200);
 
-    return true;
   } catch (err) {
     console.error('PDF generation error:', err);
     alert('❌ Error generating PDF. Please try again.');
-    return false;
   }
 }
 
-/* ------------------------------------------------------------------------
-  Camera module
-  Elements used (from HTML):
-   - cameraModal, cameraPreview (video), captureBtn, retakeBtn, usePhotoBtn
-   - capturedPhoto (img tag to preview captured image)
-   - takePhoto (trigger to open camera modal)
--------------------------------------------------------------------------*/
+/* ===========================================================================
+   Camera module (uses Modal from HTML)
+   IDs referenced: takePhoto, cameraModal, cameraPreview, photoCanvas, capturedPhoto,
+                   captureBtn, retakeBtn, usePhotoBtn, photoStatus, photoStatusText
+   =========================================================================== */
 function initCameraModule() {
   const openCameraBtn = document.getElementById('takePhoto');
   const cameraModalEl = document.getElementById('cameraModal');
-  const cameraPreview = document.getElementById('cameraPreview');
+  const previewVideo = document.getElementById('cameraPreview');
+  const photoCanvas = document.getElementById('photoCanvas');
   const capturedPhoto = document.getElementById('capturedPhoto');
   const captureBtn = document.getElementById('captureBtn');
   const retakeBtn = document.getElementById('retakeBtn');
   const usePhotoBtn = document.getElementById('usePhotoBtn');
+  const photoStatus = document.getElementById('photoStatus');
+  const photoStatusText = document.getElementById('photoStatusText');
 
-  if (!cameraModalEl || !cameraPreview) {
-    console.warn('Camera elements missing — camera module not initialized');
+  if (!openCameraBtn || !cameraModalEl || !previewVideo || !photoCanvas || !capturedPhoto) {
+    console.warn('Camera elements missing, camera module not initialized');
     return;
   }
 
-  // Bootstrap modal instance
   const cameraModal = new bootstrap.Modal(cameraModalEl, { backdrop: 'static', keyboard: false });
-
   let stream = null;
 
-  async function openCamera() {
+  async function startCamera() {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-      cameraPreview.srcObject = stream;
-      cameraPreview.play();
+      previewVideo.srcObject = stream;
+      await previewVideo.play();
+      // reset UI
       capturedPhoto.parentElement.style.display = 'none';
-      cameraPreview.style.display = 'block';
+      previewVideo.style.display = 'block';
       captureBtn.style.display = '';
       retakeBtn.style.display = 'none';
       usePhotoBtn.style.display = 'none';
       cameraModal.show();
     } catch (err) {
-      console.error('Camera open failed', err);
-      alert('Camera not available or permission denied. Please allow camera access and try again.');
+      console.error('Camera start error', err);
+      alert('Camera not available or permission denied. Please allow camera access and retry (online required for permission prompt).');
     }
   }
 
   function stopStream() {
-    if (stream && stream.getTracks) {
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
+    if (!stream) return;
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
   }
 
-  openCameraBtn?.addEventListener('click', () => openCamera());
+  openCameraBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    startCamera();
+  });
 
   captureBtn?.addEventListener('click', () => {
-    // capture frame to hidden canvas and show preview
-    const photoCanvas = document.getElementById('photoCanvas');
-    const ctx = photoCanvas.getContext('2d');
-    const vw = cameraPreview.videoWidth || cameraPreview.clientWidth;
-    const vh = cameraPreview.videoHeight || cameraPreview.clientHeight;
+    const vw = previewVideo.videoWidth || previewVideo.clientWidth || 640;
+    const vh = previewVideo.videoHeight || previewVideo.clientHeight || 480;
     photoCanvas.width = vw;
     photoCanvas.height = vh;
-    ctx.drawImage(cameraPreview, 0, 0, vw, vh);
-
-    const dataUrl = photoCanvas.toDataURL('image/jpeg', 0.9);
-    capturedPhoto.src = dataUrl;
+    const ctx = photoCanvas.getContext('2d');
+    ctx.drawImage(previewVideo, 0, 0, vw, vh);
+    const data = photoCanvas.toDataURL('image/jpeg', 0.92);
+    capturedPhoto.src = data;
     capturedPhoto.parentElement.style.display = 'block';
-    cameraPreview.style.display = 'none';
-
+    previewVideo.style.display = 'none';
     captureBtn.style.display = 'none';
     retakeBtn.style.display = '';
     usePhotoBtn.style.display = '';
@@ -253,12 +383,12 @@ function initCameraModule() {
   });
 
   retakeBtn?.addEventListener('click', () => {
-    // allow retake
-    openCamera();
+    // reopen camera
+    startCamera();
   });
 
   usePhotoBtn?.addEventListener('click', () => {
-    // user accepts photo -> set as #photoPreview for PDF usage
+    // set #photoPreview (hidden image) for PDF flow
     let photoPreview = document.getElementById('photoPreview');
     if (!photoPreview) {
       photoPreview = document.createElement('img');
@@ -266,32 +396,24 @@ function initCameraModule() {
       photoPreview.style.display = 'none';
       document.body.appendChild(photoPreview);
     }
-    photoPreview.src = capturedPhoto.src;
-
-    // show small UI confirmation
-    const photoStatus = document.getElementById('photoStatus');
+    photoPreview.src = capturedPhoto.src || '';
     if (photoStatus) {
       photoStatus.style.display = 'block';
-      const photoStatusText = document.getElementById('photoStatusText');
       if (photoStatusText) photoStatusText.textContent = 'Photo ready to attach';
     }
-
-    // close modal
-    const cameraModalObj = bootstrap.Modal.getInstance(cameraModalEl);
-    cameraModalObj?.hide();
-    stopStream();
+    const modal = bootstrap.Modal.getInstance(cameraModalEl);
+    modal?.hide();
   });
 
-  // cleanup when modal closed
   cameraModalEl.addEventListener('hidden.bs.modal', () => stopStream());
 }
 
-/* ------------------------------------------------------------------------
-  Drawing module
-  Basic pen, brush size, color palette, save to localStorage, delete
-  Elements: drawingCanvas, startDrawing, clearDrawing, saveDrawing, deleteSavedDrawing,
-            brushSize, brushSizeValue, color-option, customColor, savedDrawingImg, savedDrawingsList, toggleSavedDrawings
--------------------------------------------------------------------------*/
+/* ===========================================================================
+   Drawing module
+   IDs used: drawingCanvas, startDrawing, clearDrawing, saveDrawing, deleteSavedDrawing,
+             brushSize, brushSizeValue, color-option, customColor, savedDrawingImg,
+             savedDrawingsList, noSavedDrawings, toggleSavedDrawings, drawingStatus
+   =========================================================================== */
 function initDrawingModule() {
   const canvas = document.getElementById('drawingCanvas');
   if (!canvas) {
@@ -299,65 +421,61 @@ function initDrawingModule() {
     return;
   }
   const ctx = canvas.getContext('2d');
+
+  // set canvas full size if attributes present
+  if (!canvas.width) canvas.width = canvas.clientWidth || 800;
+  if (!canvas.height) canvas.height = canvas.clientHeight || 400;
+
+  // initialize white background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   let drawing = false;
   let currentColor = '#000000';
   let brushSize = parseInt(document.getElementById('brushSize')?.value || '5', 10);
 
-  // default canvas clear
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // UI elements
-  const startBtn = document.getElementById('startDrawing');
-  const clearBtn = document.getElementById('clearDrawing');
-  const saveBtn = document.getElementById('saveDrawing');
-  const deleteSavedBtn = document.getElementById('deleteSavedDrawing');
   const brushRange = document.getElementById('brushSize');
   const brushValue = document.getElementById('brushSizeValue');
   const colorOptions = document.querySelectorAll('.color-option');
-  const customColorInput = document.getElementById('customColor');
-  const savedDrawingImg = document.getElementById('savedDrawingImg');
+  const customColor = document.getElementById('customColor');
+  const clearBtn = document.getElementById('clearDrawing');
+  const saveBtn = document.getElementById('saveDrawing');
   const savedList = document.getElementById('savedDrawingsList');
   const noSaved = document.getElementById('noSavedDrawings');
-  const toggleSavedBtn = document.getElementById('toggleSavedDrawings');
+  const toggleSaved = document.getElementById('toggleSavedDrawings');
+  const savedDrawingImg = document.getElementById('savedDrawingImg');
 
-  // set initial UI
-  brushValue && (brushValue.textContent = `${brushSize}px`);
-
-  // Input handlers
   brushRange?.addEventListener('input', (e) => {
     brushSize = parseInt(e.target.value, 10);
-    brushValue && (brushValue.textContent = `${brushSize}px`);
+    if (brushValue) brushValue.textContent = `${brushSize}px`;
   });
 
-  colorOptions.forEach(opt => {
+  colorOptions?.forEach(opt => {
     opt.addEventListener('click', () => {
       colorOptions.forEach(o => o.classList.remove('active'));
       opt.classList.add('active');
       currentColor = opt.dataset.color || '#000000';
-      if (currentColor === '#ffffff') {
-        // white as eraser color draws white
-      }
     });
   });
 
-  customColorInput?.addEventListener('change', (e) => {
+  customColor?.addEventListener('change', (e) => {
     currentColor = e.target.value;
     colorOptions.forEach(o => o.classList.remove('active'));
   });
 
-  // Drawing handlers
   function startDraw(e) {
     drawing = true;
     ctx.beginPath();
     const rect = canvas.getBoundingClientRect();
-    ctx.moveTo((e.clientX || e.touches[0].clientX) - rect.left, (e.clientY || e.touches[0].clientY) - rect.top);
+    const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
+    const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
+    ctx.moveTo(x, y);
   }
-  function drawMove(e) {
+  function moveDraw(e) {
     if (!drawing) return;
     const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX || e.touches[0].clientX) - rect.left;
-    const y = (e.clientY || e.touches[0].clientY) - rect.top;
+    const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
+    const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
     ctx.lineTo(x, y);
     ctx.strokeStyle = currentColor;
     ctx.lineWidth = brushSize;
@@ -370,22 +488,15 @@ function initDrawingModule() {
     ctx.closePath();
   }
 
-  // Mouse events
+  // mouse
   canvas.addEventListener('mousedown', startDraw);
-  canvas.addEventListener('mousemove', drawMove);
+  canvas.addEventListener('mousemove', moveDraw);
   window.addEventListener('mouseup', endDraw);
 
-  // Touch events
+  // touch
   canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDraw(e); });
-  canvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawMove(e); });
+  canvas.addEventListener('touchmove', (e) => { e.preventDefault(); moveDraw(e); });
   canvas.addEventListener('touchend', (e) => { e.preventDefault(); endDraw(e); });
-
-  // Buttons
-  startBtn?.addEventListener('click', () => {
-    // no-op: canvas is interactive already; provide feedback
-    const statusText = document.getElementById('statusText');
-    if (statusText) statusText.textContent = 'Ready to draw';
-  });
 
   clearBtn?.addEventListener('click', () => {
     ctx.fillStyle = '#ffffff';
@@ -398,42 +509,36 @@ function initDrawingModule() {
     drawings.push({ id: Date.now(), data });
     localStorage.setItem('saved_drawings', JSON.stringify(drawings));
     showSavedPreview(data);
-    showTemporaryStatus('drawingStatus', 'Drawing saved successfully!');
+    showTemporaryMessage('drawingStatus', 'Drawing saved successfully!');
     renderSavedList();
   });
 
-  deleteSavedBtn?.addEventListener('click', () => {
+  document.getElementById('deleteSavedDrawing')?.addEventListener('click', () => {
     localStorage.removeItem('saved_drawings');
     renderSavedList();
-    showTemporaryStatus('deleteStatus', 'All saved drawings deleted!');
+    showTemporaryMessage('deleteStatus', 'All saved drawings deleted!');
   });
 
-  toggleSavedBtn?.addEventListener('click', () => {
-    const list = document.getElementById('savedDrawingsList');
-    if (list.style.display === 'none' || !list.style.display) list.style.display = 'block';
-    else list.style.display = 'none';
+  toggleSaved?.addEventListener('click', () => {
+    if (!savedList) return;
+    savedList.style.display = savedList.style.display === 'block' ? 'none' : 'block';
   });
 
-  // Helper: show saved preview
   function showSavedPreview(dataUrl) {
     if (!savedDrawingImg) return;
     savedDrawingImg.src = dataUrl;
     savedDrawingImg.style.display = 'block';
-    const previewActions = document.getElementById('previewActions');
-    if (previewActions) previewActions.style.display = 'block';
   }
 
-  // Helper: show temporary status alerts
-  function showTemporaryStatus(id, message) {
+  function showTemporaryMessage(id, msg) {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = 'block';
     const span = el.querySelector('span');
-    if (span) span.textContent = message;
-    setTimeout(() => el.style.display = 'none', 2500);
+    if (span) span.textContent = msg;
+    setTimeout(() => el.style.display = 'none', 2400);
   }
 
-  // Render saved drawings list
   function renderSavedList() {
     const drawings = JSON.parse(localStorage.getItem('saved_drawings') || '[]');
     if (!savedList) return;
@@ -444,21 +549,21 @@ function initDrawingModule() {
     }
     if (noSaved) noSaved.style.display = 'none';
     drawings.slice().reverse().forEach(d => {
-      const card = document.createElement('div');
-      card.className = 'saved-item';
-      card.innerHTML = `<img src="${d.data}" style="max-width:120px; display:block; margin-bottom:6px;"><div class="d-grid gap-1"><button class="btn btn-sm btn-primary load-drawing" data-id="${d.id}">Load</button><button class="btn btn-sm btn-danger delete-drawing" data-id="${d.id}">Delete</button></div>`;
-      savedList.appendChild(card);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'saved-item mb-2';
+      wrapper.innerHTML = `<img src="${d.data}" style="max-width:120px; display:block; margin-bottom:6px; border:1px solid #ddd;"/><div class="d-grid gap-1"><button class="btn btn-sm btn-primary load-drawing" data-id="${d.id}">Load</button><button class="btn btn-sm btn-danger delete-drawing" data-id="${d.id}">Delete</button></div>`;
+      savedList.appendChild(wrapper);
     });
 
-    // wire load/delete buttons
+    // attach handlers
     savedList.querySelectorAll('.load-drawing').forEach(btn => {
-      btn.addEventListener('click', (ev) => {
+      btn.addEventListener('click', () => {
         const id = btn.dataset.id;
         const drawings = JSON.parse(localStorage.getItem('saved_drawings') || '[]');
         const found = drawings.find(x => String(x.id) === String(id));
         if (found) {
           const img = new Image();
-          img.onload = function () {
+          img.onload = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           };
@@ -474,42 +579,41 @@ function initDrawingModule() {
         drawings = drawings.filter(x => String(x.id) !== String(id));
         localStorage.setItem('saved_drawings', JSON.stringify(drawings));
         renderSavedList();
-        showTemporaryStatus('deleteStatus', 'Drawing deleted successfully!');
+        showTemporaryMessage('deleteStatus', 'Drawing deleted successfully!');
       });
     });
   }
 
-  // initial render
+  // initial render of saved drawings
   renderSavedList();
 }
 
-/* ------------------------------------------------------------------------
-  Location Picker module (Leaflet)
-  Elements used: openLocationPicker, locationPickerModal, map, gpsBtn, confirmLocationBtn,
-                 locationInput, latitudeValue, longitudeValue, addressLine1, addressLine2, loading
--------------------------------------------------------------------------*/
+/* ===========================================================================
+   Location picker (Leaflet) using IDs from your HTML
+   - openLocationPicker, locationPickerModal, map, gpsBtn, confirmLocationBtn,
+     locationInput, latitudeValue, longitudeValue, addressLine1, addressLine2, loading
+   =========================================================================== */
 function initLocationPicker() {
   const openBtn = document.getElementById('openLocationPicker');
   const modalEl = document.getElementById('locationPickerModal');
+  const mapContainer = document.getElementById('map');
   const confirmBtn = document.getElementById('confirmLocationBtn');
   const locationInput = document.getElementById('locationInput');
+  const searchButton = document.getElementById('searchButton');
+  const searchResults = document.getElementById('searchResults');
   const latitudeValue = document.getElementById('latitudeValue');
   const longitudeValue = document.getElementById('longitudeValue');
   const addressLine1 = document.getElementById('addressLine1');
   const addressLine2 = document.getElementById('addressLine2');
-  const loadingEl = document.getElementById('loading');
   const gpsBtn = document.getElementById('gpsBtn');
-  const mapContainer = document.getElementById('map');
+  const loadingEl = document.getElementById('loading');
 
   if (!openBtn || !modalEl || !mapContainer) {
-    console.warn('Location picker elements missing');
+    console.warn('Location picker elements missing - skipping location initialization');
     return;
   }
 
-  let map, marker;
-  let mapInitialized = false;
-
-  // show modal (Bootstrap)
+  let map, marker, mapInitialized = false;
   const locModal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
 
   openBtn.addEventListener('click', () => {
@@ -521,7 +625,7 @@ function initLocationPicker() {
   });
 
   function initMap() {
-    map = L.map('map', { zoomControl: false }).setView([6.9271, 79.8612], 13); // default to Colombo
+    map = L.map('map', { zoomControl: false }).setView([6.9271, 79.8612], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'
@@ -529,50 +633,46 @@ function initLocationPicker() {
 
     marker = L.marker(map.getCenter(), { draggable: true }).addTo(map);
 
-    // when marker dragged, update coords & reverse geocode
     marker.on('moveend', () => {
       const latlng = marker.getLatLng();
-      updateLocationDisplay(latlng.lat, latlng.lng);
+      updateLocation(latlng.lat, latlng.lng);
       reverseGeocode(latlng.lat, latlng.lng);
     });
 
-    // when map clicked, move marker
     map.on('click', (e) => {
       marker.setLatLng(e.latlng);
-      updateLocationDisplay(e.latlng.lat, e.latlng.lng);
+      updateLocation(e.latlng.lat, e.latlng.lng);
       reverseGeocode(e.latlng.lat, e.latlng.lng);
     });
 
-    // search button basic behavior: does a simple Nominatim lookup
-    document.getElementById('searchButton')?.addEventListener('click', () => {
-      const q = document.getElementById('locationInput')?.value;
+    // Search (Nominatim)
+    searchButton?.addEventListener('click', () => {
+      const q = (locationInput?.value || '').trim();
       if (!q) return;
-      // use nominatim
       fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5`)
         .then(r => r.json())
         .then(results => {
-          const resultsEl = document.getElementById('searchResults');
-          resultsEl.innerHTML = '';
+          searchResults.innerHTML = '';
           results.forEach(r => {
-            const li = document.createElement('div');
-            li.className = 'search-result-item';
-            li.textContent = r.display_name;
-            li.addEventListener('click', () => {
+            const div = document.createElement('div');
+            div.className = 'search-result-item';
+            div.textContent = r.display_name;
+            div.addEventListener('click', () => {
               marker.setLatLng([r.lat, r.lon]);
               map.setView([r.lat, r.lon], 16);
-              updateLocationDisplay(parseFloat(r.lat), parseFloat(r.lon));
+              updateLocation(parseFloat(r.lat), parseFloat(r.lon));
               addressLine1.textContent = r.display_name;
-              document.getElementById('searchResults').innerHTML = '';
+              searchResults.innerHTML = '';
             });
-            resultsEl.appendChild(li);
+            searchResults.appendChild(div);
           });
-        }).catch(err => console.error('Search failed', err));
+        })
+        .catch(err => console.warn('Search failed', err));
     });
 
-    // gps button to get current position
     gpsBtn?.addEventListener('click', () => {
       if (!navigator.geolocation) {
-        alert('Geolocation not supported');
+        alert('Geolocation not supported on this device.');
         return;
       }
       loadingEl && (loadingEl.style.display = 'flex');
@@ -582,7 +682,7 @@ function initLocationPicker() {
         const lng = pos.coords.longitude;
         marker.setLatLng([lat, lng]);
         map.setView([lat, lng], 16);
-        updateLocationDisplay(lat, lng);
+        updateLocation(lat, lng);
         reverseGeocode(lat, lng);
       }, err => {
         loadingEl && (loadingEl.style.display = 'none');
@@ -593,40 +693,41 @@ function initLocationPicker() {
     mapInitialized = true;
   }
 
-  function updateLocationDisplay(lat, lng) {
+  function updateLocation(lat, lng) {
     if (latitudeValue) latitudeValue.textContent = lat.toFixed(6);
     if (longitudeValue) longitudeValue.textContent = lng.toFixed(6);
     if (addressLine2) addressLine2.textContent = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
   }
 
   function reverseGeocode(lat, lng) {
-    // Use Nominatim reverse geocode
     fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
       .then(r => r.json())
       .then(res => {
-        if (res?.display_name) addressLine1.textContent = res.display_name;
-      })
-      .catch(err => console.warn('Reverse geocode failed', err));
+        if (res?.display_name && addressLine1) addressLine1.textContent = res.display_name;
+      }).catch(err => console.warn('Reverse geocode failed', err));
   }
 
-  // Confirm location -> copy to main form and close modal
-  confirmBtn.addEventListener('click', () => {
+  confirmBtn?.addEventListener('click', () => {
     const lat = document.getElementById('latitudeValue')?.textContent || '';
     const lng = document.getElementById('longitudeValue')?.textContent || '';
     const addr = document.getElementById('addressLine1')?.textContent || '';
     const taskLocation = document.getElementById('taskLocation');
     if (taskLocation) {
-      taskLocation.value = addr || `${lat}, ${lng}` || 'Selected location';
+      taskLocation.value = addr || (lat && lng ? `${lat}, ${lng}` : '');
     }
-    // hide modal
-    const m = bootstrap.Modal.getInstance(modalEl);
-    m?.hide();
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    modal?.hide();
   });
 }
 
-/* ------------------------------------------------------------------------
-  Small helpers used in many places
--------------------------------------------------------------------------*/
+/* -------------------------------
+   Helpers used by preview & PDF
+   ------------------------------- */
+function sanitizeText(id) {
+  const el = document.getElementById(id);
+  return el ? (el.value || '').toString().trim().replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+}
+
 function addHorizontalLine(pdf, y) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   pdf.setLineWidth(0.5);
@@ -654,7 +755,6 @@ function addKeyValue(pdf, key, value, x, y) {
   return y + wrapped.length * (fontSize * 0.6) + 6;
 }
 
-// try to infer image type from data URL
 function inferImageFormat(dataUrl) {
   if (!dataUrl) return 'JPEG';
   if (dataUrl.startsWith('data:image/png')) return 'PNG';
@@ -663,35 +763,38 @@ function inferImageFormat(dataUrl) {
   return 'JPEG';
 }
 
-// full page image helper
-function addFullPageImage(pdf, imgData, title, format) {
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
+/* addFullPageImagePdf: ensures image is added with aspect fit to PDF
+   Returns a Promise because image load is asynchronous */
+function addFullPageImagePdf(pdf, imgData, title, format) {
+  return new Promise((resolve, reject) => {
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    pdf.setFontSize(14);
+    pdf.setFont(undefined, 'bold');
+    const titleW = pdf.getTextWidth(title || '');
+    if (title) pdf.text(title, (pageWidth - titleW) / 2, 18);
 
-  pdf.setFontSize(14);
-  pdf.setFont(undefined, 'bold');
-  const titleW = pdf.getTextWidth(title);
-  pdf.text(title, (pageWidth - titleW) / 2, 18);
+    const margin = 15;
+    const maxW = pageWidth - margin * 2;
+    const maxH = pageHeight - 50;
 
-  // provide margin and fit
-  const margin = 15;
-  const maxW = pageWidth - margin * 2;
-  const maxH = pageHeight - 50;
-  // calculate aspect fit
-  const img = new Image();
-  img.onload = function () {
-    let iw = img.width;
-    let ih = img.height;
-    let scale = Math.min(maxW / iw, maxH / ih);
-    let w = iw * scale;
-    let h = ih * scale;
-    const x = margin + (maxW - w) / 2;
-    const y = 28;
-    try {
-      pdf.addImage(imgData, format, x, y, w, h);
-    } catch (err) {
-      console.warn('addImage failed', err);
-    }
-  };
-  img.src = imgData;
+    const img = new Image();
+    img.onload = function () {
+      try {
+        const iw = img.width;
+        const ih = img.height;
+        const scale = Math.min(maxW / iw, maxH / ih, 1);
+        const w = iw * scale;
+        const h = ih * scale;
+        const x = margin + (maxW - w) / 2;
+        const y = 28;
+        pdf.addImage(imgData, format, x, y, w, h);
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.onerror = (e) => reject(e);
+    img.src = imgData;
+  });
 }
