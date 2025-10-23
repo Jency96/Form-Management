@@ -171,11 +171,18 @@ function createRenameModal() {
   document.getElementById('confirmDownloadBtn').addEventListener('click', async () => {
     const input = document.getElementById('fileNameInput');
     const name = (input?.value || `Task-Document-${Date.now()}`).trim();
-    const modal = bootstrap.Modal.getInstance(document.getElementById('renameModal'));
-    if (modal) modal.hide();
 
-    // Start PDF generation & download with chosen filename
-    await generatePdfAndDownload(name);
+     // ✅ Fix: ensure no element retains focus before hiding modal
+    if (document.activeElement) document.activeElement.blur();
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('renameModal'));
+       if (modalInstance) modalInstance.hide();
+
+    // Wait a small delay to allow modal animation to finish
+    setTimeout(async () => {
+      await generatePdfAndDownload(name);
+    }, 300);
+    
   });
 }
 

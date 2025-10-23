@@ -1,9 +1,9 @@
 // ============================
-// Task Form - Minimal Service Worker (v2.0)
-// Offline caching for all core assets
+// Task Form - Service Worker v2.2
+// Safe + Offline-ready + Debug Logs
 // ============================
 
-const CACHE_NAME = 'task-form-v2.0';
+const CACHE_NAME = 'task-form-v2.2';
 const ASSETS = [
   './',
   './index.html',
@@ -20,7 +20,7 @@ const ASSETS = [
   './apple-icon-180x180.png',
   './favicon-32x32.png',
 
-  // CDN dependencies (needed for offline)
+  // CDN dependencies
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
   'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js',
@@ -29,50 +29,80 @@ const ASSETS = [
 ];
 
 // -----------------------------
-// Install - cache essential assets
+// INSTALL EVENT
 // -----------------------------
 self.addEventListener('install', event => {
+  console.log('📦 [SW] Installing... caching assets');
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('🗂️ [SW] Adding core assets to cache...');
+        return cache.addAll(ASSETS);
+      })
+      .then(() => console.log('✅ [SW] Assets cached successfully'))
+      .catch(err => console.warn('⚠️ [SW] Cache install failed:', err))
   );
   self.skipWaiting();
 });
 
 // -----------------------------
-// Activate - clear old caches
+// ACTIVATE EVENT
 // -----------------------------
 self.addEventListener('activate', event => {
+  console.log('🚀 [SW] Activating new version...');
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.map(key => key !== CACHE_NAME && caches.delete(key)))
+      Promise.all(
+        keys.map(key => {
+          if (key !== CACHE_NAME) {
+            console.log('🧹 [SW] Removing old cache:', key);
+            return caches.delete(key);
+          }
+        })
+      )
     )
   );
   self.clients.claim();
+  console.log('✅ [SW] Now controlling all clients.');
 });
 
 // -----------------------------
-// Fetch - cache-first strategy
+// FETCH EVENT
 // -----------------------------
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+
   event.respondWith(
     caches.match(event.request).then(cached => {
-      if (cached) return cached;
+      if (cached) {
+        console.log('📦 [SW] Serving from cache:', event.request.url);
+        return cached;
+      }
+
       return fetch(event.request)
         .then(response => {
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
+          if (
+            response &&
+            response.status === 200 &&
+            response.type === 'basic' &&
+            event.request.url.startsWith('http') &&
+            !event.request.url.startsWith('chrome-extension')
+          ) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                cache.put(event.request, clone);
+                console.log('🆕 [SW] Cached new resource:', event.request.url);
+              });
           }
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
           return response;
         })
         .catch(() => {
-          // Offline fallback for main navigation
+          console.warn('⚠️ [SW] Fetch failed, offline fallback used for:', event.request.url);
           if (event.request.mode === 'navigate') {
             return caches.match('./index.html');
           }
-          return new Response('You are offline. Please reconnect.', {
+          return new Response('⚠️ You are offline. Please reconnect.', {
             status: 503,
             headers: { 'Content-Type': 'text/plain' }
           });
