@@ -128,14 +128,14 @@ function buildDocumentPreview() {
         <strong>Location:</strong> ${locationValue || '<em>Not provided</em>'}
       </div>
       ${(lat && lng)
-        
-            ? `<div class="mt-1">
+
+      ? `<div class="mt-1">
             <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
               <i class="fas fa-map-marker-alt"></i> View on Google Maps
             </a>
           </div>`
-            : ''
-          }
+      : ''
+    }
       <div><strong>Coordinates:</strong> ${lat && lng ? `${lat}, ${lng}` : '<em>Not provided</em>'}</div>
 
       <h5 class="mt-3">Address</h5>
@@ -745,23 +745,68 @@ function initLocationPicker() {
         return;
       }
       loadingEl && (loadingEl.style.display = 'flex');
-      navigator.geolocation.getCurrentPosition(pos => {
-        loadingEl && (loadingEl.style.display = 'none');
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
 
-        const acc = pos.coords.accuracy;
+      // Collect best fix via watchPosition with early-stop logic
+      const options = { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 };
+      let best = null; // { coords, timestamp }
+      const startedAt = Date.now();
+      const MAX_MS = 12000;          // stop after 12s
+      const GOOD_ENOUGH = 15;        // meters; stop early if reached
+
+      const stop = () => {
+        if (watchId != null) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
+        loadingEl && (loadingEl.style.display = 'none');
+      };
+
+      // Update UI with the current best accuracy
+      const renderAccuracy = (acc) => {
         const accEl = document.getElementById('accuracyValue');
-        if (accEl) accEl.textContent = `${Math.round(acc)} m`;
+        if (accEl && Number.isFinite(acc)) accEl.textContent = `${Math.round(acc)} m`;
+      };
 
-        marker.setLatLng([lat, lng]);
-        map.setView([lat, lng], 16);
-        updateLocation(lat, lng);
-        reverseGeocode(lat, lng);
-      }, err => {
-        loadingEl && (loadingEl.style.display = 'none');
-        alert('Unable to get location: ' + err.message);
-      }, { enableHighAccuracy: true, timeout: 10000 });
+      let watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+          // keep the most accurate fix
+          if (!best || accuracy < best.coords.accuracy) {
+            best = pos;
+            renderAccuracy(accuracy);
+
+            // Update marker immediately so user sees progress
+            marker.setLatLng([lat, lng]);
+            map.setView([lat, lng], Math.max(map.getZoom(), 16));
+            updateLocation(lat, lng);
+
+            // Early stop if accuracy is good enough
+            if (accuracy <= GOOD_ENOUGH) {
+              stop();
+              // Try reverse-geocoding (online only)
+              reverseGeocode(lat, lng);
+            }
+          }
+
+          // Time-based stop
+          if (Date.now() - startedAt > MAX_MS) {
+            stop();
+            if (best) {
+              const lat = best.coords.latitude;
+              const lng = best.coords.longitude;
+              updateLocation(lat, lng);
+              reverseGeocode(lat, lng); // will fail gracefully offline
+            } else {
+              alert('Unable to get a reliable location fix.');
+            }
+          }
+        },
+        (err) => {
+          stop();
+          alert('Unable to get location: ' + err.message);
+        },
+        options
+      );
     });
 
 
@@ -782,13 +827,30 @@ function initLocationPicker() {
     if (addressLine2) addressLine2.textContent = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
   }
 
+  const _geoCacheKey = (lat, lng) => `revgeo:${lat.toFixed(5)},${lng.toFixed(5)}`;
+
   function reverseGeocode(lat, lng) {
+    // try cache first
+    const key = _geoCacheKey(lat, lng);
+    const cached = localStorage.getItem(key);
+    if (cached && addressLine1) {
+      addressLine1.textContent = cached;
+    }
+
+    // if offline, stop here
+    if (!navigator.onLine) return;
+
     fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
       .then(r => r.json())
       .then(res => {
-        if (res?.display_name && addressLine1) addressLine1.textContent = res.display_name;
-      }).catch(err => console.warn('Reverse geocode failed', err));
+        if (res?.display_name && addressLine1) {
+          addressLine1.textContent = res.display_name;
+          localStorage.setItem(key, res.display_name);
+        }
+      })
+      .catch(err => console.warn('Reverse geocode failed', err));
   }
+
 
   confirmBtn?.addEventListener('click', () => {
     const lat = document.getElementById('latitudeValue')?.textContent || '';
