@@ -42,22 +42,33 @@ function initPreviewAndDownloadFlow() {
   generateBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
+
     // Build preview
     buildDocumentPreview();
+
     // Show download button
     downloadBtn.style.display = 'block';
     downloadBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 
   // Download button opens rename modal
+  // Replace the existing downloadBtn.addEventListener('click', ...) block with:
   downloadBtn.addEventListener('click', () => {
-    const modal = new bootstrap.Modal(document.getElementById('renameModal'), { backdrop: 'static' });
-    // set default name
+    // Ensure the modal exists (it’s created on DOMContentLoaded)
+    createRenameModal();
+
+    // Optionally prefill the filename
     const taskNo = document.getElementById('taskNo')?.value || '';
     const defaultName = `Task-Document-${taskNo || 'Unknown'}.pdf`;
-    document.getElementById('fileNameInput').value = defaultName;
+    const fileInput = document.getElementById('fileNameInput');
+    if (fileInput) fileInput.value = defaultName;
+
+    // Show the modal
+    const modalEl = document.getElementById('renameModal');
+    const modal = new bootstrap.Modal(modalEl, { backdrop: 'static' });
     modal.show();
   });
+
 }
 
 /* ---------------------------
@@ -90,8 +101,8 @@ function buildDocumentPreview() {
   const drawingCanvas = document.getElementById('drawingCanvas');
   // after (gate on actual content)
   let drawingSrc = (drawingCanvas && window.__drawingHasContent && window.__drawingHasContent())
-  ? drawingCanvas.toDataURL('image/png')
-  : '';
+    ? drawingCanvas.toDataURL('image/png')
+    : '';
 
   // Build HTML preview (simple but styled)
   const html = `
@@ -113,8 +124,18 @@ function buildDocumentPreview() {
         <div class="col-6"><strong>Date:</strong> ${dateValue || '<em>Not provided</em>'}</div>
       </div>
 
-      <h5 class="mt-3">Location</h5>
-      <div><strong>Location:</strong> ${locationValue || '<em>Not provided</em>'}</div>
+      <div>
+        <strong>Location:</strong> ${locationValue || '<em>Not provided</em>'}
+      </div>
+      ${(lat && lng)
+        
+            ? `<div class="mt-1">
+            <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-map-marker-alt"></i> View on Google Maps
+            </a>
+          </div>`
+            : ''
+          }
       <div><strong>Coordinates:</strong> ${lat && lng ? `${lat}, ${lng}` : '<em>Not provided</em>'}</div>
 
       <h5 class="mt-3">Address</h5>
@@ -145,49 +166,53 @@ function buildDocumentPreview() {
    Creates an element with id="renameModal" and wiring
    --------------------------- */
 function createRenameModal() {
-  if (document.getElementById('renameModal')) return; // already created
+  // Prevent duplicate modals
+  if (document.getElementById('renameModal')) return;
 
+  // Create the modal HTML
   const modalHtml = `
-  <div class="modal fade" id="renameModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Save Document As</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <label for="fileNameInput" class="form-label">File name</label>
-          <input type="text" id="fileNameInput" class="form-control" />
-          <div class="form-text mt-2">You can change the file name before downloading.</div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" id="confirmDownloadBtn" class="btn btn-primary">Download</button>
+    <div class="modal fade" id="renameModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Save Document As</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <label for="fileNameInput" class="form-label">File name</label>
+            <input type="text" id="fileNameInput" class="form-control" placeholder="Enter file name" />
+            <div class="form-text mt-2">You can change the file name before downloading.</div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" id="confirmDownloadBtn" class="btn btn-primary">Download</button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
   `;
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-  // Wire modal button
-  document.getElementById('confirmDownloadBtn').addEventListener('click', async () => {
+  // Add event listener for the confirm button inside the modal
+  document.getElementById('confirmDownloadBtn')?.addEventListener('click', async () => {
     const input = document.getElementById('fileNameInput');
     const name = (input?.value || `Task-Document-${Date.now()}`).trim();
 
-    // ✅ Fix: ensure no element retains focus before hiding modal
+    // Remove focus (optional cosmetic fix)
     if (document.activeElement) document.activeElement.blur();
 
-    const modal = bootstrap.Modal.getInstance(document.getElementById('renameModal'));
+    // Hide the modal safely
+    const modalEl = document.getElementById('renameModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
     if (modal) modal.hide();
 
-    // Wait a small delay to allow modal animation to finish
+    // Wait for the closing animation, then start the download
     setTimeout(async () => {
       await generatePdfAndDownload(name);
     }, 300);
-
   });
 }
+
 
 /* ===================================================================
    PDF generation (creates PDF from form values + attachments) and download
@@ -224,11 +249,11 @@ async function generatePdfAndDownload(filename) {
     let photoSrc = document.getElementById('photoPreview')?.src || document.getElementById('capturedPhoto')?.src || '';
     if (photoSrc && photoSrc.includes('data:,')) photoSrc = ''; // ignore empty
     const drawingCanvas = document.getElementById('drawingCanvas');
-   
+
     // after (gate on actual content)
     const drawingData = (drawingCanvas && window.__drawingHasContent && window.__drawingHasContent())
-  ? drawingCanvas.toDataURL('image/png')
-  : '';
+      ? drawingCanvas.toDataURL('image/png')
+      : '';
 
     // Build PDF page 1
     let y = margin + 5;
@@ -256,17 +281,34 @@ async function generatePdfAndDownload(filename) {
     y = addKeyValue(pdf, 'Date:', dateValue, margin, y);
 
     if (locationValue || (lat && lng)) {
+
+      // Output Location
       y = addKeyValue(pdf, 'Location:', locationValue || 'Selected via map', margin, y);
+
+      // Add Google Maps link on new line if coordinates exist
       if (lat && lng) {
-        y = addKeyValue(pdf, 'Coordinates:', `Latitude: ${parseFloat(lat).toFixed(6)} | Longitude: ${parseFloat(lng).toFixed(6)}`, margin, y);
         const mapsWebLink = `https://www.google.com/maps?q=${lat},${lng}`;
+        const linkLabel = 'View on Google Maps';
+
         pdf.setTextColor(0, 0, 255);
-        pdf.textWithLink('View on Google Maps', margin, y + 5, { url: mapsWebLink });
+        pdf.textWithLink(linkLabel, margin + 50, y, { url: mapsWebLink });
         pdf.setTextColor(0, 0, 0);
-        y += 8;
+        y += 6;
       }
-    } else {
-      y = addKeyValue(pdf, 'Location:', 'Not provided', margin, y);
+
+      // --- Coordinates (no link here) ---
+      if (lat && lng) {
+        y = addKeyValue(
+          pdf,
+          'Coordinates:',
+          `Latitude: ${parseFloat(lat).toFixed(6)} | Longitude: ${parseFloat(lng).toFixed(6)}`,
+          margin,
+          y
+        );
+      } else {
+        y = addKeyValue(pdf, 'Coordinates:', 'Not provided', margin, y);
+      }
+
     }
 
     y = addKeyValue(pdf, 'Address:', address, margin, y);
@@ -608,8 +650,8 @@ function initDrawingModule() {
   }
 
   // expose a getter for other modules
- window.__drawingHasContent = () => hasUserDrawn;
- 
+  window.__drawingHasContent = () => hasUserDrawn;
+
 
   // initial render of saved drawings
   renderSavedList();
