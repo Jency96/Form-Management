@@ -253,11 +253,7 @@
                                                     <i class="fas fa-tools"></i> Actions
                                                 </div>
                                                 <div class="d-grid gap-2">
-                                                    <button type="button"
-                                                        class="btn btn-beautiful btn-primary-beautiful"
-                                                        id="startDrawing">
-                                                        <i class="fas fa-pen"></i> Start Drawing
-                                                    </button>
+                                                    
                                                     <button type="button"
                                                         class="btn btn-beautiful btn-warning-beautiful" id="eraserBtn">
                                                         <i class="fas fa-eraser"></i> Eraser
@@ -481,21 +477,7 @@
     <!-- Your JavaScript -->
     <script src="form.js"></script>
 
-    <!-- PWA Service Worker Registration -->
-    <script>
-        // Register Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(function (registration) {
-                        console.log('Service Worker registered with scope:', registration.scope);
-                    })
-                    .catch(function (error) {
-                        console.log('Service Worker registration failed:', error);
-                    });
-            });
-        }
-    </script>
+ 
 </body>
 
 </html>

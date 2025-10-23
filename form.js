@@ -88,7 +88,10 @@ function buildDocumentPreview() {
   if (!photoSrc && capturedPhoto && capturedPhoto.src) photoSrc = capturedPhoto.src;
 
   const drawingCanvas = document.getElementById('drawingCanvas');
-  let drawingSrc = drawingCanvas ? drawingCanvas.toDataURL('image/png') : '';
+  // after (gate on actual content)
+  let drawingSrc = (drawingCanvas && window.__drawingHasContent && window.__drawingHasContent())
+  ? drawingCanvas.toDataURL('image/png')
+  : '';
 
   // Build HTML preview (simple but styled)
   const html = `
@@ -172,17 +175,17 @@ function createRenameModal() {
     const input = document.getElementById('fileNameInput');
     const name = (input?.value || `Task-Document-${Date.now()}`).trim();
 
-     // ✅ Fix: ensure no element retains focus before hiding modal
+    // ✅ Fix: ensure no element retains focus before hiding modal
     if (document.activeElement) document.activeElement.blur();
 
     const modal = bootstrap.Modal.getInstance(document.getElementById('renameModal'));
-       if (modalInstance) modalInstance.hide();
+    if (modal) modal.hide();
 
     // Wait a small delay to allow modal animation to finish
     setTimeout(async () => {
       await generatePdfAndDownload(name);
     }, 300);
-    
+
   });
 }
 
@@ -219,9 +222,13 @@ async function generatePdfAndDownload(filename) {
 
     // Photo and drawing data
     let photoSrc = document.getElementById('photoPreview')?.src || document.getElementById('capturedPhoto')?.src || '';
-    if (photoSrc && photoSrc.includes('data:,') ) photoSrc = ''; // ignore empty
+    if (photoSrc && photoSrc.includes('data:,')) photoSrc = ''; // ignore empty
     const drawingCanvas = document.getElementById('drawingCanvas');
-    const drawingData = drawingCanvas ? drawingCanvas.toDataURL('image/png') : '';
+   
+    // after (gate on actual content)
+    const drawingData = (drawingCanvas && window.__drawingHasContent && window.__drawingHasContent())
+  ? drawingCanvas.toDataURL('image/png')
+  : '';
 
     // Build PDF page 1
     let y = margin + 5;
@@ -423,6 +430,7 @@ function initCameraModule() {
    =========================================================================== */
 function initDrawingModule() {
   const canvas = document.getElementById('drawingCanvas');
+  let hasUserDrawn = false;
   if (!canvas) {
     console.warn('Drawing canvas not found');
     return;
@@ -440,6 +448,10 @@ function initDrawingModule() {
   let drawing = false;
   let currentColor = '#000000';
   let brushSize = parseInt(document.getElementById('brushSize')?.value || '5', 10);
+
+  let useEraser = false;
+  const eraserBtn = document.getElementById('eraserBtn');
+  eraserBtn?.addEventListener('click', () => { useEraser = !useEraser; eraserBtn.classList.toggle('btn-warning-beautiful'); });
 
   const brushRange = document.getElementById('brushSize');
   const brushValue = document.getElementById('brushSizeValue');
@@ -480,15 +492,17 @@ function initDrawingModule() {
   }
   function moveDraw(e) {
     if (!drawing) return;
+
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
     const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
     ctx.lineTo(x, y);
-    ctx.strokeStyle = currentColor;
+    ctx.strokeStyle = useEraser ? '#ffffff' : currentColor;
     ctx.lineWidth = brushSize;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.stroke();
+    hasUserDrawn = true;
   }
   function endDraw() {
     drawing = false;
@@ -508,6 +522,7 @@ function initDrawingModule() {
   clearBtn?.addEventListener('click', () => {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    hasUserDrawn = false; // ✅ reset: now we won't attach a blank image
   });
 
   saveBtn?.addEventListener('click', () => {
@@ -573,6 +588,7 @@ function initDrawingModule() {
           img.onload = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            hasUserDrawn = true; // ✅ it now contains content
           };
           img.src = found.data;
         }
@@ -590,6 +606,10 @@ function initDrawingModule() {
       });
     });
   }
+
+  // expose a getter for other modules
+ window.__drawingHasContent = () => hasUserDrawn;
+ 
 
   // initial render of saved drawings
   renderSavedList();
@@ -662,7 +682,7 @@ function initLocationPicker() {
           searchResults.innerHTML = '';
           results.forEach(r => {
             const div = document.createElement('div');
-            div.className = 'search-result-item';
+            div.className = 'search-result';
             div.textContent = r.display_name;
             div.addEventListener('click', () => {
               marker.setLatLng([r.lat, r.lon]);
@@ -687,6 +707,11 @@ function initLocationPicker() {
         loadingEl && (loadingEl.style.display = 'none');
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
+
+        const acc = pos.coords.accuracy;
+        const accEl = document.getElementById('accuracyValue');
+        if (accEl) accEl.textContent = `${Math.round(acc)} m`;
+
         marker.setLatLng([lat, lng]);
         map.setView([lat, lng], 16);
         updateLocation(lat, lng);
@@ -695,6 +720,15 @@ function initLocationPicker() {
         loadingEl && (loadingEl.style.display = 'none');
         alert('Unable to get location: ' + err.message);
       }, { enableHighAccuracy: true, timeout: 10000 });
+    });
+
+
+    // ✅ Add manual zoom button handlers
+    document.getElementById('zoomIn')?.addEventListener('click', () => {
+      map.setZoom(map.getZoom() + 1);
+    });
+    document.getElementById('zoomOut')?.addEventListener('click', () => {
+      map.setZoom(map.getZoom() - 1);
     });
 
     mapInitialized = true;
