@@ -24,6 +24,32 @@ document.addEventListener('DOMContentLoaded', () => {
   initDrawingModule();
   initLocationPicker();
   initPreviewAndDownloadFlow();
+
+  // --- Added: receive GPS fix from gps.html and fill the form ---
+  window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return; // security: same-origin only
+    const { type, payload } = event.data || {};
+    if (type !== 'gps-fix' || !payload) return;
+
+    const { lat, lng, acc, address, road } = payload;
+
+    const taskLocation = document.getElementById('taskLocation');
+    if (taskLocation) {
+      taskLocation.value = address || road || (lat && lng ? `${lat}, ${lng}` : '');
+    }
+
+    const latEl = document.getElementById('latitudeValue');
+    const lngEl = document.getElementById('longitudeValue');
+    const accEl = document.getElementById('accuracyValue');
+    const addr1 = document.getElementById('addressLine1');
+    const addr2 = document.getElementById('addressLine2');
+
+    if (latEl)  latEl.textContent  = (typeof lat === 'number') ? lat.toFixed(6) : (lat || '');
+    if (lngEl)  lngEl.textContent  = (typeof lng === 'number') ? lng.toFixed(6) : (lng || '');
+    if (accEl)  accEl.textContent  = acc ? `${Math.round(acc)} m` : '-';
+    if (addr1)  addr1.textContent  = address || (road || '—');
+    if (addr2 && lat && lng) addr2.textContent = `Lat: ${Number(lat).toFixed(6)}, Lng: ${Number(lng).toFixed(6)}`;
+  });
 });
 
 /* ===================================================================
@@ -662,67 +688,203 @@ function initDrawingModule() {
    - openLocationPicker, locationPickerModal, map, gpsBtn, confirmLocationBtn,
      locationInput, latitudeValue, longitudeValue, addressLine1, addressLine2, loading
    =========================================================================== */
-// Replace the existing initLocationPicker function in form.js with this:
-
 function initLocationPicker() {
   const openBtn = document.getElementById('openLocationPicker');
-  const taskLocation = document.getElementById('taskLocation');
+  const modalEl = document.getElementById('locationPickerModal');
+  const mapContainer = document.getElementById('map');
+  const confirmBtn = document.getElementById('confirmLocationBtn');
+  const locationInput = document.getElementById('locationInput');
+  const searchButton = document.getElementById('searchButton');
+  const searchResults = document.getElementById('searchResults');
+  const latitudeValue = document.getElementById('latitudeValue');
+  const longitudeValue = document.getElementById('longitudeValue');
+  const addressLine1 = document.getElementById('addressLine1');
+  const addressLine2 = document.getElementById('addressLine2');
+  const gpsBtn = document.getElementById('gpsBtn');
+  const loadingEl = document.getElementById('loading');
 
-  if (!openBtn) {
-    console.warn('Location picker button not found');
+  if (!openBtn || !modalEl || !mapContainer) {
+    console.warn('Location picker elements missing - skipping location initialization');
     return;
   }
 
-  openBtn.addEventListener('click', (e) => {
-    e.preventDefault();
+  let map, marker, mapInitialized = false;
+  const locModal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
 
-    // Open the GPS location detector in a new tab/window
-    const gpsWindow = window.open('gps.html', 'GPSLocation',
-      'width=800,height=700,scrollbars=yes,resizable=yes');
+  // Open the standalone GPS window (keep form structure unchanged)
+  openBtn.addEventListener('click', () => {
+    window.__gpsWin = window.open('gps.html', 'gpsWin', 'width=480,height=800');
+  });
 
-    if (!gpsWindow) {
-      alert('Popup blocked! Please allow popups for this site to use the GPS location detector.');
-      return;
+  function initMap() {
+    map = L.map('map', { zoomControl: false }).setView([6.9271, 79.8612], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    marker = L.marker(map.getCenter(), { draggable: true }).addTo(map);
+
+    marker.on('moveend', () => {
+      const latlng = marker.getLatLng();
+      updateLocation(latlng.lat, latlng.lng);
+      reverseGeocode(latlng.lat, latlng.lng);
+    });
+
+    map.on('click', (e) => {
+      marker.setLatLng(e.latlng);
+      updateLocation(e.latlng.lat, e.latlng.lng);
+      reverseGeocode(e.latlng.lat, e.latlng.lng);
+    });
+
+    // Search (Nominatim)
+    searchButton?.addEventListener('click', () => {
+      const q = (locationInput?.value || '').trim();
+      if (!q) return;
+      fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5`)
+        .then(r => r.json())
+        .then(results => {
+          searchResults.innerHTML = '';
+          results.forEach(r => {
+            const div = document.createElement('div');
+            div.className = 'search-result';
+            div.textContent = r.display_name;
+            div.addEventListener('click', () => {
+              marker.setLatLng([r.lat, r.lon]);
+              map.setView([r.lat, r.lon], 16);
+              updateLocation(parseFloat(r.lat), parseFloat(r.lon));
+              addressLine1.textContent = r.display_name;
+              searchResults.innerHTML = '';
+            });
+            searchResults.appendChild(div);
+          });
+        })
+        .catch(err => console.warn('Search failed', err));
+    });
+
+    gpsBtn?.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        alert('Geolocation not supported on this device.');
+        return;
+      }
+      loadingEl && (loadingEl.style.display = 'flex');
+
+      // Collect best fix via watchPosition with early-stop logic
+      const options = { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 };
+      let best = null; // { coords, timestamp }
+      const startedAt = Date.now();
+      const MAX_MS = 12000;          // stop after 12s
+      const GOOD_ENOUGH = 15;        // meters; stop early if reached
+
+      const stop = () => {
+        if (watchId != null) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
+        loadingEl && (loadingEl.style.display = 'none');
+      };
+
+      // Update UI with the current best accuracy
+      const renderAccuracy = (acc) => {
+        const accEl = document.getElementById('accuracyValue');
+        if (accEl && Number.isFinite(acc)) accEl.textContent = `${Math.round(acc)} m`;
+      };
+
+      let watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+          // keep the most accurate fix
+          if (!best || accuracy < best.coords.accuracy) {
+            best = pos;
+            renderAccuracy(accuracy);
+
+            // Update marker immediately so user sees progress
+            marker.setLatLng([lat, lng]);
+            map.setView([lat, lng], Math.max(map.getZoom(), 16));
+            updateLocation(lat, lng);
+
+            // Early stop if accuracy is good enough
+            if (accuracy <= GOOD_ENOUGH) {
+              stop();
+              // Try reverse-geocoding (online only)
+              reverseGeocode(lat, lng);
+            }
+          }
+
+          // Time-based stop
+          if (Date.now() - startedAt > MAX_MS) {
+            stop();
+            if (best) {
+              const lat = best.coords.latitude;
+              const lng = best.coords.longitude;
+              updateLocation(lat, lng);
+              reverseGeocode(lat, lng); // will fail gracefully offline
+            } else {
+              alert('Unable to get a reliable location fix.');
+            }
+          }
+        },
+        (err) => {
+          stop();
+          alert('Unable to get location: ' + err.message);
+        },
+        options
+      );
+    });
+
+
+    // ✅ Add manual zoom button handlers
+    document.getElementById('zoomIn')?.addEventListener('click', () => {
+      map.setZoom(map.getZoom() + 1);
+    });
+    document.getElementById('zoomOut')?.addEventListener('click', () => {
+      map.setZoom(map.getZoom() - 1);
+    });
+
+    mapInitialized = true;
+  }
+
+  function updateLocation(lat, lng) {
+    if (latitudeValue) latitudeValue.textContent = lat.toFixed(6);
+    if (longitudeValue) longitudeValue.textContent = lng.toFixed(6);
+    if (addressLine2) addressLine2.textContent = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+  }
+
+  const _geoCacheKey = (lat, lng) => `revgeo:${lat.toFixed(5)},${lng.toFixed(5)}`;
+
+  function reverseGeocode(lat, lng) {
+    // try cache first
+    const key = _geoCacheKey(lat, lng);
+    const cached = localStorage.getItem(key);
+    if (cached && addressLine1) {
+      addressLine1.textContent = cached;
     }
 
-    // Listen for messages from the GPS window
-    window.addEventListener('message', function (event) {
-      // Check origin for security (you might want to restrict this to your domain)
-      // if (event.origin !== "http://your-domain.com") return;
+    // if offline, stop here
+    if (!navigator.onLine) return;
 
-      if (event.data && event.data.type === 'GPS_LOCATION') {
-        const locationData = event.data;
-
-        // Update the location field in the form
-        if (taskLocation) {
-          let locationText = '';
-
-          if (locationData.address && locationData.address !== '—') {
-            locationText = locationData.address;
-          } else if (locationData.coords) {
-            locationText = `${locationData.coords.lat.toFixed(6)}, ${locationData.coords.lng.toFixed(6)}`;
-          }
-
-          if (locationText) {
-            taskLocation.value = locationText;
-
-            // Also update the address field if it's empty
-            const addressField = document.getElementById('address');
-            if (addressField && !addressField.value.trim()) {
-              addressField.value = locationText;
-            }
-
-            // Show success message
-            alert('Location successfully captured!');
-          }
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+      .then(r => r.json())
+      .then(res => {
+        if (res?.display_name && addressLine1) {
+          addressLine1.textContent = res.display_name;
+          localStorage.setItem(key, res.display_name);
         }
+      })
+      .catch(err => console.warn('Reverse geocode failed', err));
+  }
 
-        // Close the GPS window
-        if (gpsWindow && !gpsWindow.closed) {
-          gpsWindow.close();
-        }
-      }
-    });
+
+  confirmBtn?.addEventListener('click', () => {
+    const lat = document.getElementById('latitudeValue')?.textContent || '';
+    const lng = document.getElementById('longitudeValue')?.textContent || '';
+    const addr = document.getElementById('addressLine1')?.textContent || '';
+    const taskLocation = document.getElementById('taskLocation');
+    if (taskLocation) {
+      taskLocation.value = addr || (lat && lng ? `${lat}, ${lng}` : '');
+    }
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    modal?.hide();
   });
 }
 
