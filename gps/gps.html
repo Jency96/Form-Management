@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>High-Accuracy Current Location (Lite)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="gps.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>High-Accuracy Current Location</h1>
+      <div class="status" id="envStatus">—</div>
+    </header>
+
+    <div class="card">
+      <div class="row">
+        <button id="getBtn" class="btn primary">Get Precise Location</button>
+        <button id="cancelBtn" class="btn danger" disabled>Cancel</button>
+        <span id="progress" class="status">idle</span>
+      </div>
+
+      <div class="kv" style="margin-top:14px;">
+        <div class="k">Latitude</div><div id="lat">—</div>
+        <div class="k">Longitude</div><div id="lng">—</div>
+        <div class="k">Accuracy</div><div><span id="acc">—</span> <span id="accBadge" class="badge">—</span></div>
+        <div class="k">Speed</div><div id="spd">—</div>
+        <div class="k">Heading</div><div id="hdg">—</div>
+        <div class="k">Timestamp</div><div id="ts">—</div>
+        <div class="k">Street</div><div id="road">—</div>
+        <div class="k">Address</div>
+        <div class="row">
+          <span id="address">—</span>
+          <button id="copyAddrBtn" class="btn">Copy Address</button>
+        </div>
+      </div>
+
+      <div class="separator"></div>
+
+      <div class="row">
+        <input id="coordsText" class="readonly" readonly
+               placeholder="Coordinates appear here after a fix" />
+        <button id="copyBtn" class="btn">Copy Coords</button>
+        <button id="mapsBtn" class="btn">Open in Google Maps</button>
+      </div>
+
+      <div class="hint">
+        Tips for best accuracy: be outdoors / near a window, keep Wi-Fi ON (even if not connected),
+        and wait a few seconds for GPS to converge. On iOS Safari, keep the page in the foreground.
+      </div>
+    </div>
+  </div>
+
+  <script src="gps.js"></script>
+</body>
+</html>
