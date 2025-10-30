@@ -110,12 +110,20 @@
                                 <div class="mb-3">
                                     <label class="form-label">&nbsp;</label>
                                     <button type="button" class="btn btn-beautiful btn-primary-beautiful w-100"
-                                        id="openLocationPicker">
+                                        id="openGpsModal">
                                         <i class="fas fa-map-marker-alt"></i> Current Location
                                     </button>
+
                                 </div>
                             </div>
                         </div>
+
+                        <div class="mb-3">
+                            <label for="coordinatesLink" class="form-label">Coordinates / Google Maps link</label>
+                            <input type="text" class="form-control" id="coordinatesLink" readonly
+                                placeholder="Will be filled from GPS">
+                        </div>
+
 
                         <!-- address input -->
                         <div class="mb-3">
@@ -253,7 +261,7 @@
                                                     <i class="fas fa-tools"></i> Actions
                                                 </div>
                                                 <div class="d-grid gap-2">
-                                                    
+
                                                     <button type="button"
                                                         class="btn btn-beautiful btn-warning-beautiful" id="eraserBtn">
                                                         <i class="fas fa-eraser"></i> Eraser
@@ -400,68 +408,21 @@
     </div>
 
 
-    <!-- Location Picker Modal -->
-    <div id="locationPickerModal" class="modal fade" tabindex="-1" style="display: none;">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+    <!-- GPS Modal (loads gps.html inside an iframe) -->
+    <div id="gpsModal" class="modal fade" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="fas fa-map-marker-alt"></i> Select Location
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title"><i class="fas fa-location-arrow"></i> Detect Current Location</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-0">
-                    <!-- Your exact location picker code goes here -->
-                    <div class="container" style="max-width:100%; margin:0; box-shadow:none;">
-                        <div class="header">
-                            <div class="search-container">
-                                <input type="text" id="locationInput" class="search-input"
-                                    placeholder="Search location...">
-                                <button id="searchButton" class="search-btn"><i class="fas fa-search"></i></button>
-                                <div id="searchResults" class="search-results"></div>
-                            </div>
-                        </div>
-                        <div id="map" class="map"></div>
-                        <img class="pin" src="https://cdn-icons-png.flaticon.com/512/684/684908.png">
-                        <button id="gpsBtn" class="gps-btn"><i class="fas fa-location-arrow"
-                                style="color:#4a90e2;"></i></button>
-                        <div class="zoom-controls">
-                            <button id="zoomIn"><i class="fas fa-plus"></i></button>
-                            <button id="zoomOut"><i class="fas fa-minus"></i></button>
-                        </div>
-                        <div class="panel">
-                            <div class="address" id="addressLine1">Detecting location...</div>
-                            <div class="area" id="addressLine2"></div>
-                            <div class="mini-preview">
-                                <div class="coordinate">
-                                    <div class="coordinate-label">Latitude</div>
-                                    <div class="coordinate-value" id="latitudeValue">-</div>
-                                </div>
-                                <div class="coordinate">
-                                    <div class="coordinate-label">Longitude</div>
-                                    <div class="coordinate-value" id="longitudeValue">-</div>
-                                </div>
-                                <div class="coordinate">
-                                    <div class="coordinate-label">Accuracy</div>
-                                    <div class="coordinate-value" id="accuracyValue">-</div>
-                                </div>
-                            </div>
-                            <div class="btns">
-                                <button id="retryBtn" class="btn btn-secondary"><i class="fas fa-redo"></i>
-                                    Retry</button>
-                                <button id="confirmLocationBtn" class="btn btn-primary"><i
-                                        class="fas fa-check-circle"></i> Confirm</button>
-                            </div>
-                        </div>
-                        <div id="loading" class="loading">
-                            <div class="spinner"></div>
-                            <p>Detecting location...</p>
-                        </div>
-                    </div>
+                    <iframe id="gpsFrame" src="./gps/gps.html" style="border:0; width:100%; height:80vh;"></iframe>
                 </div>
             </div>
         </div>
     </div>
+
 
     <!-- Hidden canvas for photo processing -->
     <canvas id="photoCanvas" style="display: none;"></canvas>
@@ -471,13 +432,13 @@
 
     <!-- bootstrap js file -->
     <script src="bootstrap-5.3.8-dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <!-- Your JavaScript -->
     <script src="form.js"></script>
 
- 
+
 </body>
 
 </html>
