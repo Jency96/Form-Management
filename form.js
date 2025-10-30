@@ -1332,4 +1332,39 @@ document.addEventListener('DOMContentLoaded', function () {
   setupEventListeners();
   updateSavedDrawingsList();
   savedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', async () => {
+      try {
+        const reg = await navigator.serviceWorker.register('./sw.js');
+
+        const activateNow = (sw) => sw && sw.postMessage({ type: 'SKIP_WAITING' });
+
+        if (reg.waiting) activateNow(reg.waiting);
+
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          if (!newSW) return;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              activateNow(newSW);
+            }
+          });
+        });
+
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          // avoid any chance of reload loops
+          if (!window.__swReloaded) {
+            window.__swReloaded = true;
+            window.location.reload();
+          }
+        });
+      } catch (err) {
+        console.error('SW registration failed:', err);
+      }
+    });
+  }
+
+
 });

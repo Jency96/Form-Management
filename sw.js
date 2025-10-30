@@ -3,7 +3,8 @@
 // Safe + Offline-ready + Debug Logs
 // ============================
 
-const CACHE_NAME = 'task-form-v2.2';
+const CACHE_NAME = 'task-form-v2025-10-30-01';
+
 const ASSETS = [
   './',
   './index.html',
@@ -11,8 +12,8 @@ const ASSETS = [
   './form.css',
   './manifest.json',
   './gps.html',
-  './gps.css',
-  './gps.js',
+  './gps.js?v=2025-10-30-01',
+  './gps.css?v=2025-10-30-01',
 
 
   // Local Bootstrap files
@@ -68,47 +69,48 @@ self.addEventListener('activate', event => {
   console.log('✅ [SW] Now controlling all clients.');
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 // -----------------------------
-// FETCH EVENT
+// FETCH EVENT (network-first for HTML)
 // -----------------------------
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) {
-        console.log('📦 [SW] Serving from cache:', event.request.url);
-        return cached;
-      }
+  const req = event.request;
+  const isHTML = req.mode === 'navigate' ||
+    req.destination === 'document' ||
+    req.url.endsWith('.html');
 
-      return fetch(event.request)
-        .then(response => {
-          if (
-            response &&
-            response.status === 200 &&
-            response.type === 'basic' &&
-            event.request.url.startsWith('http') &&
-            !event.request.url.startsWith('chrome-extension')
-          ) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, clone);
-                console.log('🆕 [SW] Cached new resource:', event.request.url);
-              });
-          }
-          return response;
-        })
-        .catch(() => {
-          console.warn('⚠️ [SW] Fetch failed, offline fallback used for:', event.request.url);
-          if (event.request.mode === 'navigate') {
-            return caches.match('./index.html');
-          }
-          return new Response('⚠️ You are offline. Please reconnect.', {
-            status: 503,
-            headers: { 'Content-Type': 'text/plain' }
-          });
-        });
+  if (isHTML) {
+    // Network-first for pages so users see new deployments immediately
+    event.respondWith(
+      fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then(c => c.put(req, copy));
+        return res;
+      }).catch(() => caches.match(req).then(r => r || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Cache-first for static assets (CSS/JS/fonts/images)
+  event.respondWith(
+    caches.match(req).then(cached => {
+      if (cached) return cached;
+      return fetch(req).then(res => {
+        // cache successful GETs
+        if (res && res.status === 200) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(req, copy));
+        }
+        return res;
+      }).catch(() => new Response('⚠️ You are offline. Please reconnect.', {
+        status: 503, headers: { 'Content-Type': 'text/plain' }
+      }));
     })
   );
 });
+
