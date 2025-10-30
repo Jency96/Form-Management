@@ -10,6 +10,10 @@ const ASSETS = [
   './form.js',
   './form.css',
   './manifest.json',
+  './gps.html',
+  './gps.css',
+  './gps.js',
+
 
   // Local Bootstrap files
   './bootstrap-5.3.8-dist/css/bootstrap.min.css',
@@ -22,8 +26,6 @@ const ASSETS = [
 
   // CDN dependencies
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
-  'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css',
-  'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js',
   'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
 ];
