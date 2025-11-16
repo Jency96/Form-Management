@@ -751,6 +751,18 @@ document.addEventListener('DOMContentLoaded', function () {
         pdf.save(userName);
 
 
+        // Show success message
+        const successBox = document.getElementById('downloadSuccess');
+        if (successBox) {
+          successBox.style.display = 'block';
+
+          // Hide after 3 seconds
+          setTimeout(() => {
+            successBox.style.display = 'none';
+          }, 3000);
+        }
+
+
       } catch (err) {
         console.error('PDF generation error:', err);
         alert('Error generating PDF. Please try again.');
