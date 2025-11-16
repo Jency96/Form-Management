@@ -731,7 +731,26 @@ document.addEventListener('DOMContentLoaded', function () {
           await addFullPageImage(drawingData, 'DRAWING / SIGNATURE', 'PNG');
         }
 
-        pdf.save(`Task-Document-${taskNo}.pdf`);
+
+        // Ask user for a file name before saving
+        let defaultName = `Task-Document-${taskNo || 'No'}`.trim();
+        let userName = prompt('Enter a file name for the PDF:', defaultName);
+
+        // If user cancels or leaves empty, fall back to default
+        if (!userName || !userName.trim()) {
+          userName = defaultName;
+        } else {
+          userName = userName.trim();
+        }
+
+        // Ensure .pdf extension
+        if (!userName.toLowerCase().endsWith('.pdf')) {
+          userName += '.pdf';
+        }
+
+        pdf.save(userName);
+
+
       } catch (err) {
         console.error('PDF generation error:', err);
         alert('Error generating PDF. Please try again.');
