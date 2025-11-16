@@ -743,7 +743,10 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
 
-  // Drawing Tool Functionality
+  // In the Drawing Tool Functionality section, replace the entire section with this corrected version:
+
+  // === Drawing Tool Functionality (FIXED) ===
+
   // Canvas setup
   const canvas = document.getElementById('drawingCanvas');
   const ctx = canvas.getContext('2d');
@@ -753,21 +756,16 @@ document.addEventListener('DOMContentLoaded', function () {
   const currentSizeDisplay = document.getElementById('currentSize');
   const brushSize = document.getElementById('brushSize');
   const brushSizeValue = document.getElementById('brushSizeValue');
-  const eraserSize = document.getElementById('eraserSize');
-  const eraserSizeValue = document.getElementById('eraserSizeValue');
-  const eraserOptions = document.getElementById('eraserOptions');
   const customColor = document.getElementById('customColor');
   const savedDrawingImg = document.getElementById('savedDrawingImg');
   const drawingStatus = document.getElementById('drawingStatus');
   const drawingStatusText = document.getElementById('drawingStatusText');
   const deleteStatus = document.getElementById('deleteStatus');
   const deleteStatusText = document.getElementById('deleteStatusText');
-  const eraserPreview = document.getElementById('eraserPreview');
   const previewActions = document.getElementById('previewActions');
   const savedDrawingsList = document.getElementById('savedDrawingsList');
   const noSavedDrawings = document.getElementById('noSavedDrawings');
   const toggleSavedDrawings = document.getElementById('toggleSavedDrawings');
-  const areaSelection = document.getElementById('areaSelection');
 
   // Tool buttons
   const toolButtons = document.querySelectorAll('.tool-btn');
@@ -780,57 +778,43 @@ document.addEventListener('DOMContentLoaded', function () {
   let currentTool = 'pen';
   let currentColor = '#000000';
   let currentBrushSize = 5;
-  let currentEraserSize = 20;
-  let startX, startY;
-  let savedImageData;
   let savedDrawings = JSON.parse(localStorage.getItem('savedDrawings')) || [];
   let currentSavedDrawingId = null;
 
-  // Area selection variables
-  let isSelectingArea = false;
-  let selectionStartX, selectionStartY;
-  let selectionEndX, selectionEndY;
-
-
   // Initialize canvas
   function initCanvas() {
-    // Always reset to normal compositing and fully white base
+    // Set display size
+    canvas.style.width = '100%';
+    canvas.style.height = '500px';
+
+    // Set actual pixel size to match
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+
+    // White background
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
 
-    // Set brush properties
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
 
-    // Set visible white background even if canvas becomes transparent
     canvas.style.backgroundColor = 'white';
 
     updateDrawingSettings();
+    statusText.textContent = 'Ready to draw';
   }
-
 
   // Update drawing settings based on current tool and options
-
   function updateDrawingSettings() {
-    // Always reset to normal drawing mode first
-    ctx.globalCompositeOperation = 'source-over';
-
-    if (currentTool === 'eraser') {
-      // Use eraser mode safely
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.strokeStyle = 'rgba(0,0,0,1)'; // color doesn't matter in destination-out mode
-      ctx.lineWidth = currentEraserSize;
-      currentSizeDisplay.textContent = `${currentEraserSize}px`;
-    } else {
-      ctx.strokeStyle = currentColor;
-      ctx.lineWidth = currentBrushSize;
-      currentSizeDisplay.textContent = `${currentBrushSize}px`;
-    }
+    ctx.globalCompositeOperation = 'source-over'; // always normal pen mode
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = currentBrushSize;
+    currentSizeDisplay.textContent = `${currentBrushSize}px`;
+    currentToolDisplay.textContent = 'Pen';
   }
-
 
   // Get accurate mouse/touch coordinates relative to canvas
   function getCoordinates(e) {
@@ -838,41 +822,39 @@ document.addEventListener('DOMContentLoaded', function () {
     let x, y;
 
     if (e.type.includes('touch')) {
-      x = e.touches[0].clientX - rect.left;
-      y = e.touches[0].clientY - rect.top;
+      const touch = e.touches[0] || e.changedTouches[0];
+      x = touch.clientX - rect.left;
+      y = touch.clientY - rect.top;
     } else {
       x = e.clientX - rect.left;
       y = e.clientY - rect.top;
     }
 
-    // Scale coordinates based on canvas size vs display size
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
     return [x * scaleX, y * scaleY];
   }
 
-  // Save drawings to localStorage
+  // Save drawing in localStorage
   function saveDrawingToStorage(dataURL) {
     const drawing = {
       id: Date.now().toString(),
-      dataURL: dataURL,
+      dataURL,
       name: `Drawing ${savedDrawings.length + 1}`,
       date: new Date().toLocaleString()
     };
 
     savedDrawings.push(drawing);
     localStorage.setItem('savedDrawings', JSON.stringify(savedDrawings));
-
     return drawing.id;
   }
 
-  // Delete drawing from storage
+  // Delete one drawing from localStorage
   function deleteDrawingFromStorage(id) {
-    savedDrawings = savedDrawings.filter(drawing => drawing.id !== id);
+    savedDrawings = savedDrawings.filter(d => d.id !== id);
     localStorage.setItem('savedDrawings', JSON.stringify(savedDrawings));
 
-    // If we deleted the currently displayed drawing, hide it
     if (currentSavedDrawingId === id) {
       savedDrawingImg.style.display = 'none';
       previewActions.style.display = 'none';
@@ -882,7 +864,7 @@ document.addEventListener('DOMContentLoaded', function () {
     updateSavedDrawingsList();
   }
 
-  // Update the saved drawings list
+  // Update saved drawings list UI
   function updateSavedDrawingsList() {
     savedDrawingsList.innerHTML = '';
 
@@ -894,176 +876,154 @@ document.addEventListener('DOMContentLoaded', function () {
     noSavedDrawings.style.display = 'none';
 
     savedDrawings.forEach(drawing => {
-      const drawingItem = document.createElement('div');
-      drawingItem.className = 'saved-drawing-item';
-      drawingItem.innerHTML = `
-                        <img src="${drawing.dataURL}" class="saved-drawing-thumb" alt="Drawing thumbnail">
-                        <div class="saved-drawing-info">
-                            <div class="saved-drawing-name">${drawing.name}</div>
-                            <div class="saved-drawing-date">${drawing.date}</div>
-                        </div>
-                        <div class="saved-drawing-actions">
-                            <button class="btn btn-sm btn-outline-primary view-drawing" data-id="${drawing.id}">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger delete-drawing" data-id="${drawing.id}">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    `;
-      savedDrawingsList.appendChild(drawingItem);
+      const item = document.createElement('div');
+      item.className = 'saved-drawing-item';
+      item.innerHTML = `
+        <img src="${drawing.dataURL}" class="saved-drawing-thumb" alt="Drawing thumbnail">
+        <div class="saved-drawing-info">
+          <div class="saved-drawing-name">${drawing.name}</div>
+          <div class="saved-drawing-date">${drawing.date}</div>
+        </div>
+        <div class="saved-drawing-actions">
+          <button class="btn btn-sm btn-outline-primary view-drawing" data-id="${drawing.id}">
+            <i class="fas fa-eye"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-danger delete-drawing" data-id="${drawing.id}">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      `;
+      savedDrawingsList.appendChild(item);
     });
 
-    // Add event listeners to the new buttons
-    document.querySelectorAll('.view-drawing').forEach(button => {
-      button.addEventListener('click', function () {
+    // View buttons
+    savedDrawingsList.querySelectorAll('.view-drawing').forEach(btn => {
+      btn.addEventListener('click', function () {
         const id = this.getAttribute('data-id');
         const drawing = savedDrawings.find(d => d.id === id);
-        if (drawing) {
-          savedDrawingImg.src = drawing.dataURL;
-          savedDrawingImg.style.display = 'block';
-          previewActions.style.display = 'flex';
-          currentSavedDrawingId = id;
-          savedDrawingsList.style.display = 'none';
-        }
+        if (!drawing) return;
+
+        savedDrawingImg.src = drawing.dataURL;
+        savedDrawingImg.style.display = 'block';
+        previewActions.style.display = 'flex';
+        currentSavedDrawingId = id;
+        savedDrawingsList.style.display = 'none';
+        toggleSavedDrawings.innerHTML = '<i class="fas fa-list"></i> View All Saved';
       });
     });
 
-    document.querySelectorAll('.delete-drawing').forEach(button => {
-      button.addEventListener('click', function () {
+    // Delete buttons
+    savedDrawingsList.querySelectorAll('.delete-drawing').forEach(btn => {
+      btn.addEventListener('click', function () {
         const id = this.getAttribute('data-id');
-        if (confirm('Are you sure you want to delete this drawing?')) {
-          deleteDrawingFromStorage(id);
+        if (!confirm('Are you sure you want to delete this drawing?')) return;
 
-          // Show delete success message
-          deleteStatus.style.display = 'block';
-          deleteStatusText.textContent = 'Drawing deleted successfully!';
+        deleteDrawingFromStorage(id);
+        deleteStatus.style.display = 'block';
+        deleteStatusText.textContent = 'Drawing deleted successfully!';
 
-          // Hide message after 3 seconds
-          setTimeout(() => {
-            deleteStatus.style.display = 'none';
-          }, 3000);
+        setTimeout(() => {
+          deleteStatus.style.display = 'none';
+        }, 3000);
 
-          statusText.textContent = 'Drawing deleted';
-        }
+        statusText.textContent = 'Drawing deleted';
       });
     });
   }
 
-  // Area selection functionality
-  function startAreaSelection(e) {
-    isSelectingArea = true;
+  // Cursor position
+  function updateCursorPosition(e) {
     const [x, y] = getCoordinates(e);
-    selectionStartX = x;
-    selectionStartY = y;
-
-    // Show selection rectangle
-    areaSelection.style.display = 'block';
-    updateAreaSelection(x, y, x, y);
-
-    statusText.textContent = 'Drag to select area to clear';
+    cursorPosition.textContent = `X: ${Math.round(x)}, Y: ${Math.round(y)}`;
   }
 
-  function updateAreaSelection(startX, startY, endX, endY) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = rect.width / canvas.width;
-    const scaleY = rect.height / canvas.height;
-
-    const x = Math.min(startX, endX) * scaleX;
-    const y = Math.min(startY, endY) * scaleY;
-    const width = Math.abs(endX - startX) * scaleX;
-    const height = Math.abs(endY - startY) * scaleY;
-
-    areaSelection.style.left = `${x}px`;
-    areaSelection.style.top = `${y}px`;
-    areaSelection.style.width = `${width}px`;
-    areaSelection.style.height = `${height}px`;
+  // Drawing handlers
+  function startDrawing(e) {
+    e.preventDefault();
+    isDrawing = true;
+    [lastX, lastY] = getCoordinates(e);
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    statusText.textContent = 'Drawing...';
   }
 
-  function clearSelectedArea() {
-    if (!isSelectingArea) return;
+  function draw(e) {
+    if (!isDrawing) return;
+    e.preventDefault();
 
-    const x = Math.min(selectionStartX, selectionEndX);
-    const y = Math.min(selectionStartY, selectionEndY);
-    const width = Math.abs(selectionEndX - selectionStartX);
-    const height = Math.abs(selectionEndY - selectionStartY);
+    const [x, y] = getCoordinates(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    [lastX, lastY] = [x, y];
+  }
 
-    // Clear the selected area
-    ctx.clearRect(x, y, width, height);
+  function stopDrawing(e) {
+    if (!isDrawing) return;
+    e && e.preventDefault();
+    isDrawing = false;
+    statusText.textContent = 'Ready to draw';
+  }
 
-    // Reset area selection
-    isSelectingArea = false;
-    areaSelection.style.display = 'none';
+  // Touch → mouse mapping for consistent behavior
+  function handleTouchStart(e) {
+    startDrawing(e);
+  }
 
-    statusText.textContent = 'Selected area cleared';
+  function handleTouchMove(e) {
+    draw(e);
+    updateCursorPosition(e);
+  }
+
+  function handleTouchEnd(e) {
+    stopDrawing(e);
   }
 
   // Set up event listeners
   function setupEventListeners() {
-    // Mouse events
+    // Canvas mouse
     canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mousemove', (e) => {
+      draw(e);
+      updateCursorPosition(e);
+    });
     canvas.addEventListener('mouseup', stopDrawing);
     canvas.addEventListener('mouseout', stopDrawing);
 
-    // Touch events for mobile devices
-    canvas.addEventListener('touchstart', handleTouchStart);
-    canvas.addEventListener('touchmove', handleTouchMove);
-    canvas.addEventListener('touchend', stopDrawing);
-
-    // Track cursor position and show eraser preview
-    canvas.addEventListener('mousemove', updateCursorPosition);
-    canvas.addEventListener('touchmove', updateCursorPosition);
+    // Canvas touch
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
 
     // Brush size
     brushSize.addEventListener('input', function () {
-      currentBrushSize = this.value;
+      currentBrushSize = parseInt(this.value, 10);
       brushSizeValue.textContent = `${currentBrushSize}px`;
       updateDrawingSettings();
-    });
-
-    // Eraser size
-    eraserSize.addEventListener('input', function () {
-      currentEraserSize = this.value;
-      eraserSizeValue.textContent = `${currentEraserSize}px`;
-      if (currentTool === 'eraser') {
-        updateDrawingSettings();
-      }
     });
 
     // Custom color
     customColor.addEventListener('input', function () {
       currentColor = this.value;
       updateDrawingSettings();
-
-      // Update active color in palette
-      colorOptions.forEach(option => {
-        option.classList.remove('active');
-      });
+      colorOptions.forEach(opt => opt.classList.remove('active'));
     });
 
-    // Tool buttons
+    // Tool buttons (only Pen for now, but kept generic)
     toolButtons.forEach(button => {
       button.addEventListener('click', function () {
-        toolButtons.forEach(btn => {
-          btn.classList.remove('active');
-
-        });
-
         const tool = this.getAttribute('data-tool');
-        currentTool = tool;
+        if (!tool) return;
 
-        // Since we only have pen tool now, always set active and hide eraser options
+        toolButtons.forEach(btn => btn.classList.remove('active'));
         this.classList.add('active');
-        eraserOptions.style.display = 'none';
 
+        currentTool = tool; // only 'pen' currently
         updateDrawingSettings();
-        statusText.textContent = `${currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} tool selected`;
-        currentToolDisplay.textContent = currentTool.charAt(0).toUpperCase() + currentTool.slice(1);
+        statusText.textContent = 'Pen tool selected';
       });
     });
 
-    // Color options
+    // Color palette
     colorOptions.forEach(option => {
       option.addEventListener('click', function () {
         colorOptions.forEach(opt => opt.classList.remove('active'));
@@ -1074,99 +1034,27 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     });
 
-    // Action buttons
-    document.getElementById('startDrawing').addEventListener('click', function () {
-      currentTool = 'pen';
-      toolButtons.forEach(btn => {
-        btn.classList.remove('active');
-
-        if (btn.getAttribute('data-tool') === 'pen') {
-          btn.classList.add('active');
-        }
-      });
-      eraserOptions.style.display = 'none';
-      updateDrawingSettings();
-      statusText.textContent = 'Pen tool selected';
-      currentToolDisplay.textContent = 'Pen';
-    });
-
-    document.getElementById('eraserBtn').addEventListener('click', function () {
-      currentTool = 'eraser';
-      toolButtons.forEach(btn => {
-        btn.classList.remove('active');
-        btn.classList.remove('eraser-active');
-        if (btn.getAttribute('data-tool') === 'eraser') {
-          btn.classList.add('eraser-active');
-        }
-      });
-      eraserOptions.style.display = 'block';
-      updateDrawingSettings();
-      statusText.textContent = 'Eraser tool selected';
-      currentToolDisplay.textContent = 'Eraser';
-    });
-
+    // Clear canvas
     document.getElementById('clearDrawing').addEventListener('click', function () {
-      if (confirm('Are you sure you want to clear the canvas?')) {
-        initCanvas();
-        statusText.textContent = 'Canvas cleared';
-      }
+      if (!confirm('Are you sure you want to clear the canvas?')) return;
+      initCanvas();
+      statusText.textContent = 'Canvas cleared';
     });
 
-    // Clear Area button functionality
-    document.getElementById('clearAreaBtn').addEventListener('click', function () {
-      // Enable area selection mode
-      isSelectingArea = true;
-      statusText.textContent = 'Click and drag to select area to clear';
-
-      // Add temporary event listeners for area selection
-      const areaSelectionMouseDown = function (e) {
-        if (!isSelectingArea) return;
-        startAreaSelection(e);
-      };
-
-      const areaSelectionMouseMove = function (e) {
-        if (!isSelectingArea) return;
-        const [x, y] = getCoordinates(e);
-        selectionEndX = x;
-        selectionEndY = y;
-        updateAreaSelection(selectionStartX, selectionStartY, x, y);
-      };
-
-      const areaSelectionMouseUp = function (e) {
-        if (!isSelectingArea) return;
-        clearSelectedArea();
-
-        // Remove temporary event listeners
-        canvas.removeEventListener('mousedown', areaSelectionMouseDown);
-        canvas.removeEventListener('mousemove', areaSelectionMouseMove);
-        canvas.removeEventListener('mouseup', areaSelectionMouseUp);
-        isSelectingArea = false;
-      };
-
-      canvas.addEventListener('mousedown', areaSelectionMouseDown);
-      canvas.addEventListener('mousemove', areaSelectionMouseMove);
-      canvas.addEventListener('mouseup', areaSelectionMouseUp);
-    });
-
+    // Save drawing
     document.getElementById('saveDrawing').addEventListener('click', function () {
-      // Save the current drawing as an image
       const dataURL = canvas.toDataURL('image/png');
-      const drawingId = saveDrawingToStorage(dataURL);
+      const id = saveDrawingToStorage(dataURL);
 
-      // Update the preview
       savedDrawingImg.src = dataURL;
       savedDrawingImg.style.display = 'block';
       previewActions.style.display = 'flex';
-      currentSavedDrawingId = drawingId;
+      currentSavedDrawingId = id;
 
-      // Update the saved drawings list
       updateSavedDrawingsList();
 
-      // Show success message
       drawingStatus.style.display = 'block';
       drawingStatusText.textContent = 'Drawing saved successfully!';
-
-      // Hide message after 3 seconds
       setTimeout(() => {
         drawingStatus.style.display = 'none';
       }, 3000);
@@ -1174,75 +1062,51 @@ document.addEventListener('DOMContentLoaded', function () {
       statusText.textContent = 'Drawing saved';
     });
 
+    // Delete ALL saved drawings
     document.getElementById('deleteSavedDrawing').addEventListener('click', function () {
       if (savedDrawings.length === 0) {
         alert('No saved drawings to delete.');
         return;
       }
+      if (!confirm('Are you sure you want to delete all saved drawings?')) return;
 
-      if (confirm('Are you sure you want to delete all saved drawings?')) {
-        savedDrawings = [];
-        localStorage.removeItem('savedDrawings');
-        updateSavedDrawingsList();
+      savedDrawings = [];
+      localStorage.removeItem('savedDrawings');
+      updateSavedDrawingsList();
 
-        // Hide the current preview
-        savedDrawingImg.style.display = 'none';
-        previewActions.style.display = 'none';
-        currentSavedDrawingId = null;
+      savedDrawingImg.style.display = 'none';
+      previewActions.style.display = 'none';
+      currentSavedDrawingId = null;
 
-        // Show delete success message
-        deleteStatus.style.display = 'block';
-        deleteStatusText.textContent = 'All drawings deleted successfully!';
+      deleteStatus.style.display = 'block';
+      deleteStatusText.textContent = 'All drawings deleted successfully!';
+      setTimeout(() => {
+        deleteStatus.style.display = 'none';
+      }, 3000);
 
-        // Hide message after 3 seconds
-        setTimeout(() => {
-          deleteStatus.style.display = 'none';
-        }, 3000);
-
-        statusText.textContent = 'All drawings deleted';
-      }
+      statusText.textContent = 'All drawings deleted';
     });
 
+    // Delete CURRENT drawing
     document.getElementById('deleteCurrentDrawing').addEventListener('click', function () {
       if (!currentSavedDrawingId) {
         alert('No drawing selected to delete.');
         return;
       }
+      if (!confirm('Are you sure you want to delete this drawing?')) return;
 
-      if (confirm('Are you sure you want to delete this drawing?')) {
-        deleteDrawingFromStorage(currentSavedDrawingId);
+      deleteDrawingFromStorage(currentSavedDrawingId);
 
-        // Show delete success message
-        deleteStatus.style.display = 'block';
-        deleteStatusText.textContent = 'Drawing deleted successfully!';
+      deleteStatus.style.display = 'block';
+      deleteStatusText.textContent = 'Drawing deleted successfully!';
+      setTimeout(() => {
+        deleteStatus.style.display = 'none';
+      }, 3000);
 
-        // Hide message after 3 seconds
-        setTimeout(() => {
-          deleteStatus.style.display = 'none';
-        }, 3000);
-
-        statusText.textContent = 'Drawing deleted';
-      }
+      statusText.textContent = 'Drawing deleted';
     });
 
-    document.getElementById('loadCurrentDrawing').addEventListener('click', function () {
-      if (!currentSavedDrawingId) {
-        alert('No drawing selected to load.');
-        return;
-      }
-
-      const drawing = savedDrawings.find(d => d.id === currentSavedDrawingId);
-      if (drawing) {
-        const img = new Image();
-        img.onload = function () {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          statusText.textContent = 'Drawing loaded to canvas';
-        };
-        img.src = drawing.dataURL;
-      }
-    });
-
+    // Toggle saved drawings list
     toggleSavedDrawings.addEventListener('click', function () {
       if (savedDrawingsList.style.display === 'block') {
         savedDrawingsList.style.display = 'none';
@@ -1254,117 +1118,58 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Update cursor position display and eraser preview
-  function updateCursorPosition(e) {
-    const [x, y] = getCoordinates(e);
-    cursorPosition.textContent = `X: ${Math.round(x)}, Y: ${Math.round(y)}`;
+  // Initialize drawing tool
+  function initializeDrawingTool() {
+    initCanvas();
+    setupEventListeners();
+    updateSavedDrawingsList();
 
-    // Show eraser preview when using eraser tool
-    if (currentTool === 'eraser') {
-      const rect = canvas.getBoundingClientRect();
-      eraserPreview.style.display = 'block';
-      eraserPreview.style.width = `${currentEraserSize}px`;
-      eraserPreview.style.height = `${currentEraserSize}px`;
-      eraserPreview.style.left = `${e.clientX - rect.left - currentEraserSize / 2}px`;
-      eraserPreview.style.top = `${e.clientY - rect.top - currentEraserSize / 2}px`;
-    } else {
-      eraserPreview.style.display = 'none';
+    if (savedDrawings.length > 0) {
+      const first = savedDrawings[0];
+      savedDrawingImg.src = first.dataURL;
+      savedDrawingImg.style.display = 'block';
+      previewActions.style.display = 'flex';
+      currentSavedDrawingId = first.id;
     }
   }
 
-  // Drawing functions
-  function startDrawing(e) {
-    if (isSelectingArea) return;
-
-    isDrawing = true;
-    [lastX, lastY] = getCoordinates(e);
-    startX = lastX;
-    startY = lastY;
-
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-
-    statusText.textContent = 'Drawing...';
-  }
-
-  function draw(e) {
-    if (!isDrawing || isSelectingArea) return;
-
-    e.preventDefault();
-
-    const [x, y] = getCoordinates(e);
-
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    [lastX, lastY] = [x, y];
-  }
-
-  function stopDrawing() {
-    if (!isDrawing || isSelectingArea) return;
-
-    isDrawing = false;
-    statusText.textContent = `${currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} tool selected`;
-  }
-
-  // Touch event handlers
-  function handleTouchStart(e) {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent('mousedown', {
-      clientX: touch.clientX,
-      clientY: touch.clientY
-    });
-    canvas.dispatchEvent(mouseEvent);
-  }
-
-  function handleTouchMove(e) {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent('mousemove', {
-      clientX: touch.clientX,
-      clientY: touch.clientY
-    });
-    canvas.dispatchEvent(mouseEvent);
-  }
-
-  // Initialize the drawing tool
-  initCanvas();
-  setupEventListeners();
-  updateSavedDrawingsList();
-  savedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  // Call at end of DOMContentLoaded
+  initializeDrawingTool();
 
 
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
-      try {
-        const reg = await navigator.serviceWorker.register('./sw.js');
 
-        const activateNow = (sw) => sw && sw.postMessage({ type: 'SKIP_WAITING' });
 
-        if (reg.waiting) activateNow(reg.waiting);
+  // if ('serviceWorker' in navigator) {
+  //   window.addEventListener('load', async () => {
+  //     try {
+  //       const reg = await navigator.serviceWorker.register('./sw.js');
 
-        reg.addEventListener('updatefound', () => {
-          const newSW = reg.installing;
-          if (!newSW) return;
-          newSW.addEventListener('statechange', () => {
-            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-              activateNow(newSW);
-            }
-          });
-        });
+  //       const activateNow = (sw) => sw && sw.postMessage({ type: 'SKIP_WAITING' });
 
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          // avoid any chance of reload loops
-          if (!window.__swReloaded) {
-            window.__swReloaded = true;
-            window.location.reload();
-          }
-        });
-      } catch (err) {
-        console.error('SW registration failed:', err);
-      }
-    });
-  }
+  //       if (reg.waiting) activateNow(reg.waiting);
+
+  //       reg.addEventListener('updatefound', () => {
+  //         const newSW = reg.installing;
+  //         if (!newSW) return;
+  //         newSW.addEventListener('statechange', () => {
+  //           if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+  //             activateNow(newSW);
+  //           }
+  //         });
+  //       });
+
+  //       navigator.serviceWorker.addEventListener('controllerchange', () => {
+  //         // avoid any chance of reload loops
+  //         if (!window.__swReloaded) {
+  //           window.__swReloaded = true;
+  //           window.location.reload();
+  //         }
+  //       });
+  //     } catch (err) {
+  //       console.error('SW registration failed:', err);
+  //     }
+  //   });
+  // }
 
 
 });

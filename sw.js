@@ -1,6 +1,7 @@
 // sw.js — Form Management (GitHub Pages)
 // Cache-busting version (bump this whenever you ship): 
-const CACHE_NAME = 'task-form-v2025-10-30-01';
+const CACHE_NAME = 'task-form-v2025-10-30-02';
+
 
 // Precache the exact URLs your pages actually load (include ?v= versions)
 const ASSETS = [
@@ -9,13 +10,13 @@ const ASSETS = [
   './manifest.json',
 
   // Root app files (versioned)
-  './form.css?v=2025-10-30-01',
-  './form.js?v=2025-10-30-01',
+  './form.css?v=2025-10-30-02',
+  './form.js?v=2025-10-30-02',
 
   // GPS screen lives in /gps with its own versioned assets
   './gps/gps.html',
-  './gps/gps.css?v=2025-10-30-01',
-  './gps/gps.js?v=2025-10-30-01',
+  './gps/gps.css?v=2025-10-30-02',
+  './gps/gps.js?v=2025-10-30-02',
 ];
 
 // Allow the page to trigger immediate activation

@@ -175,12 +175,6 @@ body {
     color: white;
 }
 
-.tool-btn.eraser-active {
-    background-color: var(--warning-color);
-    border-color: var(--warning-color);
-    color: #212529;
-}
-
 .color-palette {
     display: flex;
     flex-wrap: wrap;
@@ -211,6 +205,7 @@ body {
     justify-content: center;
     background-color: #f8fafc;
     position: relative;
+    height: 500px;
 }
 
 #drawingCanvas {
@@ -219,6 +214,8 @@ body {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
     cursor: crosshair;
     touch-action: none;
+    width: 100%;
+    height: 100%;
 }
 
 .cursor-position {
@@ -287,13 +284,14 @@ body {
 
 .preview-image {
     max-width: 100%;
+    max-height: 400px;
     border-radius: 8px;
     border: 1px solid #e1e8f5;
     display: none;
 }
 
 .preview-actions {
-    display: flex;
+    display: none;
     gap: 10px;
     margin-top: 15px;
     justify-content: center;
@@ -430,43 +428,23 @@ body {
     color: #721c24;
 }
 
-.eraser-preview {
-    position: absolute;
-    pointer-events: none;
-    border: 2px dashed #ff5722;
-    border-radius: 50%;
-    display: none;
-    z-index: 10;
-}
-
-.tool-options {
-    background-color: white;
-    border-radius: 8px;
-    padding: 10px;
-    margin-top: 10px;
-    border: 1px solid #e1e8f5;
-}
-
-.eraser-options {
-    display: none;
-}
-
 .saved-drawings-list {
     margin-top: 15px;
-    max-height: 200px;
+    max-height: 300px;
     overflow-y: auto;
     border: 1px solid #e1e8f5;
     border-radius: 8px;
     padding: 10px;
+    background-color: white;
     display: none;
 }
 
 .saved-drawing-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 8px;
+    padding: 10px;
     border-bottom: 1px solid #f1f5fd;
+    gap: 10px;
 }
 
 .saved-drawing-item:last-child {
@@ -474,21 +452,22 @@ body {
 }
 
 .saved-drawing-thumb {
-    width: 50px;
-    height: 50px;
+    width: 60px;
+    height: 60px;
     border-radius: 4px;
     border: 1px solid #e1e8f5;
-    object-fit: cover;
+    object-fit: contain;
+    background: white;
 }
 
 .saved-drawing-info {
-    flex-grow: 1;
-    margin-left: 10px;
+    flex: 1;
 }
 
 .saved-drawing-name {
-    font-weight: 500;
+    font-weight: 600;
     font-size: 14px;
+    margin-bottom: 4px;
 }
 
 .saved-drawing-date {
@@ -500,21 +479,6 @@ body {
     display: flex;
     gap: 5px;
 }
-
-.area-selection {
-    position: absolute;
-    border: 2px dashed #ff5722;
-    background-color: rgba(255, 87, 34, 0.1);
-    pointer-events: none;
-    display: none;
-    z-index: 5;
-}
-
-#clearAreaBtn {
-    display: none !important;
-}
-
-
 
 .document-preview {
     background-color: white;
@@ -548,11 +512,7 @@ body {
 
     .canvas-container {
         padding: 10px;
-    }
-
-    #drawingCanvas {
-        width: 100% !important;
-        height: auto !important;
+        height: 400px;
     }
 
     .tool-buttons {
@@ -573,10 +533,14 @@ body {
     }
 }
 
+/* Remove all eraser-related styles */
+.eraser-preview,
+.area-selection,
+.eraser-options {
+    display: none !important;
+}
 
-
-
-/* Location Picker Modal Styles */
+/* Rest of your existing CSS for modals and other elements remains the same */
 #locationPickerModal .modal-dialog {
     margin: 0;
     max-width: 100%;
